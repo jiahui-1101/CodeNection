@@ -1,0 +1,79 @@
+import 'package:flutter/material.dart';
+import 'package:hello_flutter/title.dart';
+import 'package:hello_flutter/TopNavBar.dart';
+import 'package:hello_flutter/SmartSosButton.dart';
+import 'package:hello_flutter/HomePage.dart';
+import 'package:hello_flutter/MapPage.dart';
+import 'package:hello_flutter/ReportPage.dart';
+import 'package:hello_flutter/AppDrawer.dart';
+
+class MainScreen extends StatefulWidget {             // 2. App的主屏幕 (MainScreen Widget)
+  const MainScreen({super.key});
+
+  @override
+  State<MainScreen> createState() => _MainScreenState();
+}
+
+class _MainScreenState extends State<MainScreen> {
+  int _selectedTopIndex = 0;
+  final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
+
+  static final List<Widget> _pages = <Widget>[
+    HomePage(),
+    MapPage(),
+    ReportPage(),
+  ];
+
+  void _onTopNavTapped(int index) {
+    setState(() {
+      _selectedTopIndex = index;
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      key: _scaffoldKey,
+      appBar: AppBar(
+        automaticallyImplyLeading: false,
+          toolbarHeight: 100, // ⬅️ 提高 AppBar 高度
+        //title: const Text('JustBrightForUTM', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 20)),
+        title:const Center(child: UtmBrightTitle()), //import title
+        backgroundColor: Color(0xFF8EB9D4),
+       //backgroundColor: Color(0xFF6AA9FE),
+
+        foregroundColor: Colors.black87,
+        elevation: 1.0,
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.menu, size: 30),
+            onPressed: () {
+              _scaffoldKey.currentState?.openDrawer();
+            },
+          ),
+        ],
+      ),
+      drawer: const AppDrawer(),
+      body: Stack(
+        clipBehavior: Clip.none,
+        children: [
+          Column(
+            children: [
+              TopNavBar(
+                selectedIndex: _selectedTopIndex,
+                onItemTapped: _onTopNavTapped,
+              ),
+              Expanded(
+                child: IndexedStack(
+                  index: _selectedTopIndex,
+                  children: _pages,
+                ),
+              ),
+            ],
+          ),
+          const SmartSosButton(),
+        ],
+      ),
+    );
+  }
+}
