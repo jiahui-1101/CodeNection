@@ -27,7 +27,7 @@ class MyApp extends StatelessWidget {
     return MaterialApp(
       title: 'JustBrightForUTM',
       theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(seedColor: Colors.blue.shade300),
+        colorScheme: ColorScheme.fromSeed(seedColor: const Color.fromARGB(255, 145, 203, 250)),
         //scaffoldBackgroundColor: Colors.red[100],
          scaffoldBackgroundColor: const Color(0xFFFFFAE6),
         useMaterial3: true,

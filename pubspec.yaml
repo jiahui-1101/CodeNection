@@ -46,3 +46,17 @@ flutter:
   assets:
     - assets/images/
     - assets/music/alarm.mp3
+
+  fonts:
+    - family: Grillin
+      fonts:
+        - asset: assets/fonts/Grillin.otf
+    - family: Reselu
+      fonts:
+        - asset: assets/fonts/Reselu.ttf
+    - family: Cangkang
+      fonts:
+        - asset: assets/fonts/CangKang.otf
+    - family: Gerdu
+      fonts:
+        - asset: assets/fonts/Gerdu.otf

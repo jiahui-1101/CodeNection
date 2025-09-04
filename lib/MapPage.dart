@@ -1,7 +1,7 @@
-// map_page.dart
 import 'package:flutter/material.dart';
 import 'loading_page.dart';
 import 'pair_result_page.dart';
+import 'navigation_page.dart'; // Add this import
 import 'LocationSelectionPage.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:http/http.dart' as http;
@@ -32,6 +32,7 @@ class _MapPageState extends State<MapPage> {
     _mapController?.dispose();
     super.dispose();
   }
+
 
   Future<void> _calculateRoute() async {
     if (sourceLatLng == null || destinationLatLng == null) return;
@@ -136,11 +137,16 @@ class _MapPageState extends State<MapPage> {
   }
 
   void _startWalkAlone() {
-    setState(() {
-      journeyStarted = true;
-    });
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text("🚶 Starting journey alone...")),
+    // Navigate directly to NavigationPage for walking alone
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => NavigationPage(
+          currentLocation: currentLocation!,
+          destination: destination!,
+          isWalkingTogether: false,
+        ),
+      ),
     );
   }
 
@@ -157,8 +163,8 @@ class _MapPageState extends State<MapPage> {
     );
 
     // Handle result from matching
-    if (result != null && result is bool) {
-      if (result) {
+    if (result != null && result is Map<String, dynamic>) {
+      if (result['isMatched']) {
         // Matched - navigate to pair result page
         await Navigator.push(
           context,
@@ -166,10 +172,20 @@ class _MapPageState extends State<MapPage> {
             builder: (_) => PairResultPage(
               currentLocation: currentLocation!,
               destination: destination!,
+              matchedPartners: result['matchedPartners'],
               onStartJourney: () {
-                setState(() {
-                  journeyStarted = true;
-                });
+                // Navigate to NavigationPage with matched partners
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => NavigationPage(
+                      currentLocation: currentLocation!,
+                      destination: destination!,
+                      isWalkingTogether: true,
+                      matchedPartners: result['matchedPartners'],
+                    ),
+                  ),
+                );
               },
             ),
           ),
@@ -326,7 +342,7 @@ class _MapPageState extends State<MapPage> {
         mainAxisSize: MainAxisSize.min,
         children: [
           ElevatedButton(
-            onPressed: _startWalkAlone,
+            onPressed: _startWalkAlone, // Updated to call _startWalkAlone directly
             style: ElevatedButton.styleFrom(
               minimumSize: const Size.fromHeight(50),
               backgroundColor: Colors.green,
@@ -335,12 +351,12 @@ class _MapPageState extends State<MapPage> {
           ),
           const SizedBox(height: 12),
           ElevatedButton(
-            onPressed: _startMatching,
+            onPressed: _startMatching, // Updated to call _startMatching directly
             style: ElevatedButton.styleFrom(
               minimumSize: const Size.fromHeight(50),
               backgroundColor: Colors.orange,
             ),
-            child: const Text("🤝 Let's WA Mode", style: TextStyle(color: Colors.white)),
+            child: const Text("🤝 Let's WALK Mode", style: TextStyle(color: Colors.white)),
           ),
           const SizedBox(height: 12),
           TextButton(

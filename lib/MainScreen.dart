@@ -39,7 +39,7 @@ class _MainScreenState extends State<MainScreen> {
           toolbarHeight: 100, // ⬅️ 提高 AppBar 高度
         //title: const Text('JustBrightForUTM', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 20)),
         title:const Center(child: UtmBrightTitle()), //import title
-        backgroundColor: Color(0xFF8EB9D4),
+        backgroundColor: Color.fromARGB(255, 198, 228, 247),
        //backgroundColor: Color(0xFF6AA9FE),
 
         foregroundColor: Colors.black87,
