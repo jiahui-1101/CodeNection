@@ -16,7 +16,7 @@ class LoadingPage extends StatefulWidget {
   State<LoadingPage> createState() => _LoadingPageState();
 }
 
-class _LoadingPageState extends State<LoadingPage> {
+class _LoadingPageState extends State<LoadingPage> with SingleTickerProviderStateMixin {
   bool _isMatching = true;
   int _progress = 0;
   final List<String> _searchingMessages = [
@@ -28,17 +28,38 @@ class _LoadingPageState extends State<LoadingPage> {
   ];
   int _currentMessageIndex = 0;
   
-  // 添加 Timer 变量
+  // Timer variables
   Timer? _progressTimer;
   Timer? _messageTimer;
   Timer? _matchingTimer;
+  
+  // Animation controller
+  late AnimationController _animationController;
+  late Animation<double> _walkingAnimation;
 
   @override
   void initState() {
     super.initState();
+    
+    // Initialize animation controller
+    _animationController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1000),
+    );
+    
+    // Create walking animation
+    _walkingAnimation = Tween<double>(begin: 0, end: 1).animate(
+      CurvedAnimation(
+        parent: _animationController,
+        curve: Curves.easeInOut,
+      ),
+    );
+    
+    // Start animations and timers
     _startMatching();
     _startProgressAnimation();
     _startMessageRotation();
+    _animationController.repeat(reverse: true);
   }
 
   void _startProgressAnimation() {
@@ -68,35 +89,68 @@ class _LoadingPageState extends State<LoadingPage> {
   }
 
   Future<void> _startMatching() async {
-    // 使用 Timer 而不是 Future.delayed 以便可以取消
+    // Use Timer instead of Future.delayed for better control
     _matchingTimer = Timer(const Duration(seconds: 5), () async {
       if (!mounted) return;
       
-      // Simulate matching result (50% chance of match)
-      final bool isMatched = DateTime.now().millisecond % 2 == 0;
+      // Simulate matching result (75% chance of match for better UX)
+      final bool isMatched = DateTime.now().millisecond % 4 != 0;
+      
+      // Simulate matched partners data
+      List<Map<String, dynamic>> matchedPartners = [];
+      if (isMatched) {
+        matchedPartners = [
+          {
+            'name': 'Sarah Johnson',
+            'profileImage': '👩',
+            'rating': 4.8,
+            'walkingSpeed': 'Moderate',
+            'matchPercentage': 92,
+            'distance': '0.2 miles away',
+          },
+          {
+            'name': 'Michael Chen',
+            'profileImage': '👨',
+            'rating': 4.5,
+            'walkingSpeed': 'Brisk',
+            'matchPercentage': 85,
+            'distance': '0.5 miles away',
+          },
+        ];
+      }
 
       if (mounted) {
         setState(() {
           _isMatching = false;
           _progress = 100;
         });
+        
+        // Stop the walking animation
+        _animationController.stop();
       }
 
-      // Wait a bit before returning result
-      await Future.delayed(const Duration(seconds: 1));
+      // Wait a bit before returning result to show completion
+      await Future.delayed(const Duration(milliseconds: 800));
 
       if (mounted) {
-        Navigator.of(context).pop(isMatched);
+        Navigator.of(context).pop({
+          'isMatched': isMatched,
+          'matchedPartners': matchedPartners,
+        });
       }
     });
   }
 
   @override
   void dispose() {
-    // 取消所有 Timer
+    // Cancel all timers
     _progressTimer?.cancel();
     _messageTimer?.cancel();
     _matchingTimer?.cancel();
+    
+    // Dispose animation controller
+    _animationController.dispose();
+    
     super.dispose();
   }
 
@@ -143,6 +197,9 @@ class _LoadingPageState extends State<LoadingPage> {
                 
                 // Cancel button
                 if (_isMatching) _buildCancelButton(),
+                
+                // Result indicator (when matching is complete)
+                if (!_isMatching) _buildResultIndicator(),
               ],
             ),
           ),
@@ -152,53 +209,61 @@ class _LoadingPageState extends State<LoadingPage> {
   }
 
   Widget _buildWalkingAnimation() {
-    return Stack(
-      alignment: Alignment.center,
-      children: [
-        Container(
-          width: 120,
-          height: 120,
-          decoration: BoxDecoration(
-            color: Colors.white,
-            shape: BoxShape.circle,
-            boxShadow: [
-              BoxShadow(
-                color: Colors.blue.shade100,
-                blurRadius: 15,
-                spreadRadius: 2,
-              ),
-            ],
-          ),
-          child: const Icon(
-            Icons.directions_walk,
-            size: 50,
-            color: Colors.blue,
-          ),
-        ),
-        if (_isMatching)
-          Positioned(
-            right: 0,
-            top: 0,
-            child: Container(
-              width: 24,
-              height: 24,
-              decoration: const BoxDecoration(
-                color: Colors.blue,
-                shape: BoxShape.circle,
-              ),
-              child: const Center(
-                child: SizedBox(
-                  width: 12,
-                  height: 12,
-                  child: CircularProgressIndicator(
-                    strokeWidth: 2,
-                    valueColor: AlwaysStoppedAnimation(Colors.white),
-                  ),
+    return AnimatedBuilder(
+      animation: _walkingAnimation,
+      builder: (context, child) {
+        return Transform.translate(
+          offset: Offset(0, -_walkingAnimation.value * 10),
+          child: Container(
+            width: 120,
+            height: 120,
+            decoration: BoxDecoration(
+              color: Colors.white,
+              shape: BoxShape.circle,
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.blue.shade100,
+                  blurRadius: 15,
+                  spreadRadius: 2,
                 ),
-              ),
+              ],
+            ),
+            child: Stack(
+              alignment: Alignment.center,
+              children: [
+                Icon(
+                  Icons.directions_walk,
+                  size: 50,
+                  color: _isMatching ? Colors.blue : Colors.green,
+                ),
+                if (_isMatching)
+                  Positioned(
+                    right: 0,
+                    top: 0,
+                    child: Container(
+                      width: 24,
+                      height: 24,
+                      decoration: const BoxDecoration(
+                        color: Colors.blue,
+                        shape: BoxShape.circle,
+                      ),
+                      child: const Center(
+                        child: SizedBox(
+                          width: 12,
+                          height: 12,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            valueColor: AlwaysStoppedAnimation(Colors.white),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+              ],
             ),
           ),
-      ],
+        );
+      },
     );
   }
 
@@ -207,17 +272,19 @@ class _LoadingPageState extends State<LoadingPage> {
       children: [
         Text(
           '$_progress%',
-          style: const TextStyle(
+          style: TextStyle(
             fontSize: 24,
             fontWeight: FontWeight.bold,
-            color: Colors.blue,
+            color: _isMatching ? Colors.blue : Colors.green,
           ),
         ),
         const SizedBox(height: 10),
         LinearProgressIndicator(
           value: _progress / 100,
           backgroundColor: Colors.grey.shade300,
-          valueColor: AlwaysStoppedAnimation(Colors.blue.shade400),
+          valueColor: AlwaysStoppedAnimation(
+            _isMatching ? Colors.blue.shade400 : Colors.green,
+          ),
           borderRadius: BorderRadius.circular(10),
           minHeight: 8,
         ),
@@ -237,13 +304,15 @@ class _LoadingPageState extends State<LoadingPage> {
     return AnimatedSwitcher(
       duration: const Duration(milliseconds: 500),
       child: Text(
-        _searchingMessages[_currentMessageIndex],
-        key: ValueKey(_currentMessageIndex),
+        _isMatching 
+          ? _searchingMessages[_currentMessageIndex]
+          : "Match found! Preparing your route...",
+        key: ValueKey(_currentMessageIndex + (_isMatching ? 0 : 1000)),
         textAlign: TextAlign.center,
-        style: const TextStyle(
+        style: TextStyle(
           fontSize: 16,
           fontWeight: FontWeight.w500,
-          color: Colors.black87,
+          color: _isMatching ? Colors.black87 : Colors.green.shade700,
         ),
       ),
     );
@@ -297,19 +366,38 @@ class _LoadingPageState extends State<LoadingPage> {
   Widget _buildCancelButton() {
     return TextButton(
       onPressed: () {
-        // 取消所有 Timer
+        // Cancel all timers and animations
         _progressTimer?.cancel();
         _messageTimer?.cancel();
         _matchingTimer?.cancel();
-        Navigator.pop(context, false);
+        _animationController.stop();
+        
+        // Return to previous screen with no match
+        Navigator.pop(context, {
+          'isMatched': false,
+          'matchedPartners': [],
+        });
       },
       style: TextButton.styleFrom(
-        foregroundColor: Colors.grey,
+        foregroundColor: Colors.grey.shade700,
+        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
       ),
       child: const Text(
         'Cancel Search',
-        style: TextStyle(fontSize: 14),
+        style: TextStyle(fontSize: 16),
       ),
+    );
+  }
+
+  Widget _buildResultIndicator() {
+    return const Column(
+      children: [
+        SizedBox(height: 10),
+        CircularProgressIndicator(
+          valueColor: AlwaysStoppedAnimation(Colors.green),
+          strokeWidth: 2,
+        ),
+      ],
     );
   }
 }

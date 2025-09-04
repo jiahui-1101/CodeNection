@@ -1,80 +1,198 @@
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
-
 
 class UtmBrightTitle extends StatelessWidget {
-  const UtmBrightTitle({super.key});
+  const UtmBrightTitle({super.key, this.withAnimation = true});
+  
+  final bool withAnimation;
 
   @override
   Widget build(BuildContext context) {
-    final titleStyle = GoogleFonts.baloo2(
-      fontSize: 42, // 更大
+    return withAnimation 
+        ? const AnimatedUtmBrightTitle() 
+        : const StaticUtmBrightTitle();
+  }
+}
+
+class StaticUtmBrightTitle extends StatelessWidget {
+  const StaticUtmBrightTitle({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    // 只替换字体部分，保持其他所有代码不变
+    final titleStyle = TextStyle(
+      fontFamily: 'Reselu',
+      fontSize: 50,
       fontWeight: FontWeight.bold,
-      color: Colors.white,
-      letterSpacing: 3.0, // 横向字间距更宽
-    );
-
-    final sloganStyle = GoogleFonts.patrickHand(
-      fontSize: 20,
-      color: const Color(0xFF333333),
-    );
-
-    final uStyle = GoogleFonts.baloo2(
-      fontSize: 25,
-      fontWeight: FontWeight.bold,
-      color: Colors.white,
-    );
-
-    return Column(
-      mainAxisAlignment: MainAxisAlignment.center,
-      children: [
-        // 第一行: UTMBRIGHT
-        Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            ShaderMask(
-              blendMode: BlendMode.srcIn,
-              shaderCallback: (bounds) => const LinearGradient(
-                colors: [Color(0xFFD62828), Color(0xFFB51B1B)],
-                begin: Alignment.topCenter,
-                end: Alignment.bottomCenter,
-              ).createShader(bounds),
-              child: Text('UTM', style: titleStyle),
-            ),
-            const SizedBox(width: 6), // 左右多一点空隙
-            ShaderMask(
-              blendMode: BlendMode.srcIn,
-              shaderCallback: (bounds) => const LinearGradient(
-                colors: [Color(0xFFF7B500), Color(0xFFFCBF49)],
-                begin: Alignment.topCenter,
-                end: Alignment.bottomCenter,
-              ).createShader(bounds),
-              child: Text('BRIGHT', style: titleStyle),
-            ),
-          ],
+      height: 1.0,
+      letterSpacing: 2.9,
+      shadows: [
+        Shadow(
+          offset: Offset(3.0, 3.0),
+          blurRadius: 6.0,
+          color: Colors.black.withOpacity(1.0),
         ),
+        Shadow(
+          offset: Offset(1.0, 1.0),
+          blurRadius: 3.0,
+          color: Colors.black.withOpacity(0.4),
+    ),
+      ],
+    );
 
-        const SizedBox(height: 0.5), // 两行间距更小
-
-        // 第二行: Just Bright for U
-        Row(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.baseline,
-          textBaseline: TextBaseline.alphabetic,
-          children: [
-            Text('Just Bright for ', style: sloganStyle),
-            ShaderMask(
-              blendMode: BlendMode.srcIn,
-              shaderCallback: (bounds) => const LinearGradient(
-                colors: [Color(0xFFF7B500), Color(0xFFFCBF49)],
-                begin: Alignment.topCenter,
-                end: Alignment.bottomCenter,
-              ).createShader(bounds),
-              child: Text('U', style: uStyle),
-            ),
-          ],
+    final sloganStyle = TextStyle(
+      fontFamily: 'Grillin',
+      fontSize: 22,
+      fontWeight: FontWeight.w500,
+      color: const Color(0xFF555555),
+      height: 1.0,
+      shadows: [
+        Shadow(
+          offset: Offset(1.0, 1.0),
+          blurRadius: 3.0,
+          color: Colors.black.withOpacity(0.3),
         ),
       ],
+    );
+
+    return Container(
+      // 添加顶部填充使整个标题向下移动
+      padding: const EdgeInsets.only(top: 30.0),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          // 主标题行
+          Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // UTM部分 - 红色渐变
+              ShaderMask(
+                blendMode: BlendMode.srcIn,
+                shaderCallback: (bounds) => const LinearGradient(
+                  colors: [Color.fromARGB(255, 209, 33, 33), Color(0xFFFF5E5E)],
+                  stops: [0.0, 1.0],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                ).createShader(bounds),
+                child: Text('UTM', style: titleStyle),
+              ),
+              const SizedBox(width: 8),
+              // BRIGHT部分 - 金色渐变
+              ShaderMask(
+                blendMode: BlendMode.srcIn,
+                shaderCallback: (bounds) => const LinearGradient(
+                  colors: [Color.fromARGB(250, 43, 40, 7), Color.fromARGB(255, 251, 160, 2),Color(0xFFFF5E5E)],
+                  stops: [0.0, 0.5, 1.0],
+                  begin: Alignment.bottomRight,
+                  end: Alignment.topLeft,
+                ).createShader(
+    // 扩展渐变区域以确保完全覆盖，特别是右侧
+                  Rect.fromLTRB(
+                    bounds.left - 2, 
+                    bounds.top - 2, 
+                    bounds.right + 2, // 右侧多扩展一些，覆盖T字母
+                    bounds.bottom + 2
+                  ),
+                ),
+                child: Text('BRIGHT', style: titleStyle),
+              ),
+            ],
+          ),
+          
+          // 减小主标题和副标题之间的间距
+          const SizedBox(height: 4),
+          
+          // 副标题行 - 确保所有文字都有颜色
+          Container(
+            // 添加底部间距，让副标题不紧贴底部
+            margin: const EdgeInsets.only(bottom: 15.0), // 添加底部间距
+            child: ShaderMask(
+              blendMode: BlendMode.srcIn,
+              shaderCallback: (bounds) => const LinearGradient(
+                colors: [Color.fromARGB(255, 32, 32, 32), Color.fromARGB(255, 16, 0, 247)],
+                stops: [0.0, 1.0],
+                begin: Alignment.centerRight,
+                end: Alignment.centerLeft,
+              ).createShader(bounds),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.baseline,
+                textBaseline: TextBaseline.alphabetic,
+                children: [
+                  Text('Just Bright for ', style: sloganStyle),
+                  Text(
+                    'U', 
+                    style: sloganStyle.copyWith(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 28,
+                      height: 1.0,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class AnimatedUtmBrightTitle extends StatefulWidget {
+  const AnimatedUtmBrightTitle({super.key});
+
+  @override
+  State<AnimatedUtmBrightTitle> createState() => _AnimatedUtmBrightTitleState();
+}
+
+class _AnimatedUtmBrightTitleState extends State<AnimatedUtmBrightTitle> 
+    with SingleTickerProviderStateMixin {
+  late AnimationController _controller;
+  late Animation<double> _scaleAnimation;
+  late Animation<double> _opacityAnimation;
+
+  @override
+  void initState() {
+    super.initState();
+    
+    _controller = AnimationController(
+      duration: const Duration(milliseconds: 1200),
+      vsync: this,
+    );
+    
+    _scaleAnimation = TweenSequence<double>(
+      [
+        TweenSequenceItem(tween: Tween(begin: 0.0, end: 1.1), weight: 0.5),
+        TweenSequenceItem(tween: Tween(begin: 1.1, end: 1.0), weight: 0.5),
+      ],
+    ).animate(
+      CurvedAnimation(parent: _controller, curve: Curves.easeOutBack)
+    );
+    
+    _opacityAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
+      CurvedAnimation(
+        parent: _controller,
+        curve: const Interval(0.3, 1.0, curve: Curves.easeIn),
+      ),
+    );
+    
+    _controller.forward();
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return ScaleTransition(
+      scale: _scaleAnimation,
+      child: FadeTransition(
+        opacity: _opacityAnimation,
+        child: const StaticUtmBrightTitle(),
+      ),
     );
   }
 }

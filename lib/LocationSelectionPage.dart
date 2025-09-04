@@ -25,7 +25,7 @@ class _LocationSelectionPageState extends State<LocationSelectionPage> {
   bool _showDestinationSuggestions = false;
 
   @override
-  void initState() {
+  void initState() { 
     super.initState();
     _currentLocationController.text = widget.initialCurrentLocation ?? '';
   }

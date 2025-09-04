@@ -13,15 +13,16 @@ class AppDrawer extends StatelessWidget {   // 抽屉菜单 (AppDrawer Widget)
         padding: EdgeInsets.zero,
         children: [
           UserAccountsDrawerHeader(
-            accountName: const Text('Mei Xue', style: TextStyle(fontWeight: FontWeight.bold, color: Colors.white, shadows: [Shadow(color: Colors.black, blurRadius: 2)])),
-            accountEmail: const Text('meixue@gmail.com', style: TextStyle(color: Colors.white, shadows: [Shadow(color: Colors.black, blurRadius: 2)])),
+            accountName: const Text('next level utm', style: TextStyle(fontWeight: FontWeight.bold, color: Colors.white, shadows: [Shadow(color: Colors.black, blurRadius: 2)])),
+            accountEmail: const Text('next_level_utm@gmail.com', style: TextStyle(color: Colors.white, shadows: [Shadow(color: Colors.black, blurRadius: 2)])),
             currentAccountPicture: const CircleAvatar(
-              backgroundImage: NetworkImage('https://img.soccersuck.com/images/2022/11/18/4c4b01be6415446c9789031ede08a225_315680695_686610763023135_407685450978648229_n.jpg'),
+              backgroundImage: AssetImage('assets/images/bg.jpg'),
+              radius: 30, // adjust size
             ),
             decoration: const BoxDecoration(
               image: DecorationImage(
                 fit: BoxFit.cover,
-                image: NetworkImage('https://tse4.mm.bing.net/th/id/OIP.p0n7VCBDrHbIoUCRWk5MEwHaEK?rs=1&pid=ImgDetMain&o=7&rm=3'),
+                image: AssetImage('assets/images/wallpaper.jpg'),
                 colorFilter: ColorFilter.mode(Colors.black38, BlendMode.darken)
               ),
             ),
