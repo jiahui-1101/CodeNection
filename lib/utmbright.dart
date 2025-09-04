@@ -1,3 +1,4 @@
+/*JUST FOR REFERENCE, demo.dart IS REAL MAIN ENTRY
 import 'package:flutter/material.dart';
 import 'package:hello_flutter/MainScreen.dart';
 //import 'package:audioplayers/audioplayers.dart';
@@ -37,7 +38,7 @@ class MyApp extends StatelessWidget {
       home: const MainScreen(),
     );
   }
-}
+}*/
 
 // ===================================================================
 //XIA MIAN KE YI SHAN WAN LE

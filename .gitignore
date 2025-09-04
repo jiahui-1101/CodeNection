@@ -45,7 +45,6 @@ app.*.map.json
 /android/app/release
 
 testing.dart
-demo.dart
 campus.dart
 LiveFeedFull.dart
 prompt.txt

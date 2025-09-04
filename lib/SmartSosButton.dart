@@ -58,7 +58,7 @@ class _SmartSosButtonState extends State<SmartSosButton>
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text("⏹️ Alarm Sound Stopped!"),
-          duration: Duration(seconds: 2),
+          duration: Duration(milliseconds: 2),
         ),
       );
     } else {
@@ -67,7 +67,7 @@ class _SmartSosButtonState extends State<SmartSosButton>
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text("🔊 Alarm Sound Activated!"),
-          duration: Duration(seconds: 3),
+          duration: Duration(milliseconds: 2),
         ),
       );
 }
