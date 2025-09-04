@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-class SettingsPage extends StatefulWidget {
+class SettingsPage extends StatefulWidget {  //drawer punya setting once tekan redirecting to setting page
   const SettingsPage({super.key});
 
   @override

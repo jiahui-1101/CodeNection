@@ -3,6 +3,7 @@ import 'dart:async'; // 用于 Timer
 import 'package:hello_flutter/GuardianModeScreen.dart'; // GuardianModeScreen 在这里
 import 'package:audioplayers/audioplayers.dart';
 
+//floating sos button when enter full live feed page ,always dekat right top section
 class SosAppBarButton extends StatefulWidget {
   const SosAppBarButton({super.key});
 
