@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:hello_flutter/DrawerNews.dart';
+import 'package:hello_flutter/EmergencyContactPage.dart';
 import 'package:hello_flutter/SettingPage.dart';
 
 class AppDrawer extends StatelessWidget {   // 抽屉菜单 (AppDrawer Widget)
@@ -35,6 +36,14 @@ class AppDrawer extends StatelessWidget {   // 抽屉菜单 (AppDrawer Widget)
                 builder: (context) => const DrawerNews(),
               ));
           }),
+          ListTile(title: const Text('Emergency Contact'),trailing: const Icon(Icons.phone_in_talk),onTap: () {
+              Navigator.of(context).pop();
+              Navigator.of(context).push(MaterialPageRoute(
+                builder: (context) => const EmergencyContactPage(),
+              ));
+            },
+          ),
+          const Divider(),
           ListTile(title: const Text('Settings'), trailing: const Icon(Icons.settings), onTap: () {
             // 首先关闭抽屉
               Navigator.of(context).pop();
