@@ -610,7 +610,7 @@ class _NavigationPageState extends State<NavigationPage> {
                   myLocationEnabled: true,
                   myLocationButtonEnabled: false,
                   compassEnabled: true,
-                  zoomControlsEnabled: false,
+                  zoomControlsEnabled: false, 
                   onMapCreated: (controller) {
                     _controller.complete(controller);
                   },
