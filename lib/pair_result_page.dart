@@ -1,6 +1,7 @@
 // pair_result_page.dart
 import 'package:flutter/material.dart';
 import 'navigation_page.dart'; // Import the navigation page
+import 'chat_page.dart';
 
 class PairResultPage extends StatefulWidget {
   final String currentLocation;
@@ -316,11 +317,14 @@ class _PairResultPageState extends State<PairResultPage> {
                 width: double.infinity,
                 child: ElevatedButton(
                   onPressed: () {
-                    Navigator.pop(context);
-                    // Start chat functionality would go here
-                  },
+    // Navigate to ChatPage instead of popping
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (context) => const ChatPage()),
+                    );
+                    },
                   child: const Text('Start Chat'),
-                ),
+                  ),
               ),
             ],
           ),
