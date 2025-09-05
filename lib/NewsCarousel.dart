@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
 import 'dart:async';
 import 'package:hello_flutter/NewsCard.dart';
+import 'package:hello_flutter/NewsDetailPage.dart';
 
-class NewsCarousel extends StatefulWidget {           // 4. 新闻轮播 (NewsCarousel Widget)
+class NewsCarousel extends StatefulWidget {           //  新闻轮播 (NewsCarousel Widget)
   const NewsCarousel({super.key});
 
   @override
@@ -11,9 +12,21 @@ class NewsCarousel extends StatefulWidget {           // 4. 新闻轮播 (NewsCa
 
 class _NewsCarouselState extends State<NewsCarousel> {
   final List<Map<String, String>> newsData = [
-    {'image': 'https://news.utm.my/wp-content/uploads/2022/05/3D2A3753-1200x800.jpg', 'title': 'Hehehe Campus Security Patrols Increased at Night'},
-    {'image': 'https://images.unsplash.com/photo-1517486808906-6ca8b3f04846?q=80&w=1974', 'title': 'New Well-Lit Pathway Opens Near Library'},
-    {'image': 'https://images.unsplash.com/photo-1616763355548-1b606f439f86?q=80&w=2070', 'title': 'Reminder: Final Exam Week Shuttle Bus Schedule'},
+    {'image': 'https://news.utm.my/wp-content/uploads/2022/05/3D2A3753-1200x800.jpg', 
+    'title': 'oh wow fantastic Campus Security Patrols Increased at Night',
+    'date': '2025/9/5',
+      'content': 'Inspection of the campus security patrols at night has been increased.\n\nThis is to ensure the safety of all students and staff on campus. Please report any suspicious activities to the campus security immediately.\n\nThank you for your cooperation.'
+      },
+    {'image': 'https://images.unsplash.com/photo-1517486808906-6ca8b3f04846?q=80&w=1974', 
+    'title': 'New Well-Lit Pathway Opens Near Library',
+    'date': '2025/9/6',
+    'content': 'A new well-lit pathway has been opened near the library to enhance safety for students walking at night. This initiative is part of the university\'s ongoing efforts to improve campus safety and accessibility.\n\nWe encourage all students to utilize this new pathway and report any safety concerns to campus security.'
+    },
+    {'image': 'https://images.unsplash.com/photo-1616763355548-1b606f439f86?q=80&w=2070',
+    'title': 'Reminder: Final Exam Week Shuttle Bus Schedule',
+    'date': '2025/9/7',
+    'content': 'During the final exam week, the shuttle bus service will operate on a modified schedule. Please check the university website for the latest updates and plan your travel accordingly.\n\nGood luck to all students taking their exams!'
+    },
   ];
 
   late final PageController _pageController;
@@ -57,6 +70,7 @@ class _NewsCarouselState extends State<NewsCarousel> {
   }
 
   @override
+  @override
   Widget build(BuildContext context) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -80,9 +94,27 @@ class _NewsCarouselState extends State<NewsCarousel> {
                   });
                 },
                 itemBuilder: (context, index) {
+                  // 获取当前这条新闻的所有数据
+                  final newsItem = newsData[index];
+
+                  // 返回一个可点击的新闻卡片
                   return NewsCard(
-                      imageUrl: newsData[index]['image']!,
-                      title: newsData[index]['title']!);
+                    imageUrl: newsItem['image']!,
+                    title: newsItem['title']!,
+                    onTap: () {
+                      // 点击时，导航到新闻详情页
+                      Navigator.of(context).push(
+                        MaterialPageRoute(
+                          builder: (context) => NewsDetailPage(
+                            imageUrl: newsItem['image'] ?? 'https://via.placeholder.com/400x250',
+                            title: newsItem['title'] ?? 'Untitled',
+                            date: newsItem['date'] ?? 'Unknown Date',
+                            content: newsItem['content'] ?? 'No content available.',
+                          ),
+                        ),
+                      );
+                    },
+                  );
                 },
               ),
               Positioned(

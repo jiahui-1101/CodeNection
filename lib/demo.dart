@@ -11,7 +11,7 @@ import 'package:hello_flutter/MainScreen.dart';
 //import 'package:hello_flutter/AppDrawer.dart';
 // ============================THIS IS MAIN CLASS()=================================
 //做map和report的page只要改MapPage和ReportPage的class就可以了，
-//不用改MainScreen和其他class，MapPage he ReportPage在main.dart 里面也call好了（我们的main我叫utmbright.dart)
+//不用改MainScreen和其他class，MapPage he ReportPage在main.dart 里面也call好了（我们的main我叫demo.dart)
 
 void main() {
   runApp(const MyApp());

@@ -3,26 +3,35 @@ import 'package:flutter/material.dart';
 class NewsCard extends StatelessWidget {
   final String imageUrl;
   final String title;
-  const NewsCard({super.key, required this.imageUrl, required this.title});
+  final VoidCallback? onTap; //tap on news card to redirect to news detail page
+
+  const NewsCard({super.key, required this.imageUrl, required this.title,this.onTap,});
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 8.0),
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(20),
-        image: DecorationImage(
-          image: NetworkImage(imageUrl),
-          fit: BoxFit.cover,
+    
+    return InkWell(
+      onTap: onTap, 
+      borderRadius: BorderRadius.circular(20), 
+      
+      child: Container(
+        margin: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 8.0),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(20),
+          image: DecorationImage(
+            image: NetworkImage(imageUrl),
+            fit: BoxFit.cover,
+          ),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.15),
+              blurRadius: 12,
+              offset: const Offset(0, 6),
+            )
+          ],
         ),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.15),
-            blurRadius: 12,
-            offset: const Offset(0, 6),
-          )
-        ],
-      ),
+
+        //  use Align to wrap child,让 child always at bottom center
       child: Align(
         alignment: Alignment.bottomCenter,
         child: Container(
@@ -47,6 +56,7 @@ class NewsCard extends StatelessWidget {
           ),
         ),
       ),
+    )
     );
   }
 }
