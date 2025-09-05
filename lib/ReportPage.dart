@@ -95,7 +95,7 @@ Future<void> _pickImage() async {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text("Make a Report Here 欧尼酱", style: TextStyle(fontWeight: FontWeight.bold)),
+        title: const Text("Make a Report Here ", style: TextStyle(fontWeight: FontWeight.bold)),
         backgroundColor: const Color(0xFF8EB9D4),
       ),
       body: SingleChildScrollView(
@@ -207,7 +207,7 @@ Future<void> _pickImage() async {
                TextFormField(
                         controller: _contactController,
                         decoration: const InputDecoration(
-                          labelText: "Emel atau No. Telefon (Pilihan)", // "Email or Phone No. (Optional)"
+                          labelText: "Email or Phone No. (Optional)", // "Email or Phone No. (Optional)"
                           prefixIcon: Icon(Icons.contact_mail_outlined),
                           border: OutlineInputBorder(),
                         ),
