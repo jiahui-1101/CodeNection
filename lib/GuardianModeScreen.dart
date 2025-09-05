@@ -85,9 +85,19 @@ class GuardianModeScreen extends StatelessWidget {   // long press then click an
                   ),
                 ],
               ),
-              const Center(
-                // TODO: 这里未来可以换成实时地图
-                child: Icon(Icons.shield_moon, color: Colors.white24, size: 150),
+              Column(
+                children: [
+                 const Icon(Icons.shield_moon, color: Colors.white24, size: 150),
+                 const SizedBox(height: 30),
+
+                 _BlinkingIcon(),
+
+                 const SizedBox(height: 8),
+                 const Text(
+                   "Recording in progress",
+                   style: TextStyle(color: Colors.white, fontSize: 16, fontStyle: FontStyle.italic),
+                  ),
+                ],
               ),
               ElevatedButton(
                 onPressed: () => _showDeactivationDialog(context),
@@ -102,6 +112,38 @@ class GuardianModeScreen extends StatelessWidget {   // long press then click an
           ),
         ),
       ),
+    );
+  }
+}
+
+class _BlinkingIcon extends StatefulWidget {
+  @override
+  State<_BlinkingIcon> createState() => _BlinkingIconState();
+}
+
+class _BlinkingIconState extends State<_BlinkingIcon> with SingleTickerProviderStateMixin {
+  late AnimationController _controller;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      duration: const Duration(seconds: 1),
+      vsync: this,
+    )..repeat(reverse: true); // 往返闪烁
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return FadeTransition(
+      opacity: _controller,
+      child: const Icon(Icons.mic, color: Colors.white, size: 40),
     );
   }
 }
