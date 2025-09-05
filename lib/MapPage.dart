@@ -18,7 +18,7 @@ class _MapPageState extends State<MapPage> {
   String? currentLocation;
   String? destination;
   bool journeyStarted = false;
-  
+
   // For map and route
   GoogleMapController? _mapController;
   LatLng? sourceLatLng;
@@ -33,7 +33,6 @@ class _MapPageState extends State<MapPage> {
     super.dispose();
   }
 
-
   Future<void> _calculateRoute() async {
     if (sourceLatLng == null || destinationLatLng == null) return;
 
@@ -41,41 +40,47 @@ class _MapPageState extends State<MapPage> {
       'https://maps.googleapis.com/maps/api/directions/json?'
       'origin=${sourceLatLng!.latitude},${sourceLatLng!.longitude}&'
       'destination=${destinationLatLng!.latitude},${destinationLatLng!.longitude}&'
-      'key=$googleApiKey'
+      'key=$googleApiKey',
     );
 
     try {
       final response = await http.get(url);
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
-        
+
         if (data['status'] == 'OK') {
           final points = data['routes'][0]['overview_polyline']['points'];
           final List<LatLng> routeCoordinates = _decodePolyline(points);
-          
+
           setState(() {
             markers = {
               Marker(
                 markerId: const MarkerId('source'),
                 position: sourceLatLng!,
-                infoWindow: InfoWindow(title: currentLocation ?? 'Current Location'),
-                icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueBlue),
+                infoWindow: InfoWindow(
+                  title: currentLocation ?? 'Current Location',
+                ),
+                icon: BitmapDescriptor.defaultMarkerWithHue(
+                  BitmapDescriptor.hueBlue,
+                ),
               ),
               Marker(
                 markerId: const MarkerId('destination'),
                 position: destinationLatLng!,
                 infoWindow: InfoWindow(title: destination ?? 'Destination'),
-                icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueRed),
-              )
+                icon: BitmapDescriptor.defaultMarkerWithHue(
+                  BitmapDescriptor.hueRed,
+                ),
+              ),
             };
-            
+
             polylines = {
               Polyline(
                 polylineId: const PolylineId('route'),
                 points: routeCoordinates,
                 color: Colors.blue,
                 width: 5,
-              )
+              ),
             };
           });
 
@@ -95,10 +100,18 @@ class _MapPageState extends State<MapPage> {
   LatLngBounds _boundsFromLatLngList(List<LatLng> points) {
     double? west, north, east, south;
     for (LatLng point in points) {
-      west = west != null ? (west < point.longitude ? west : point.longitude) : point.longitude;
-      north = north != null ? (north > point.latitude ? north : point.latitude) : point.latitude;
-      east = east != null ? (east > point.longitude ? east : point.longitude) : point.longitude;
-      south = south != null ? (south < point.latitude ? south : point.latitude) : point.latitude;
+      west = west != null
+          ? (west < point.longitude ? west : point.longitude)
+          : point.longitude;
+      north = north != null
+          ? (north > point.latitude ? north : point.latitude)
+          : point.latitude;
+      east = east != null
+          ? (east > point.longitude ? east : point.longitude)
+          : point.longitude;
+      south = south != null
+          ? (south < point.latitude ? south : point.latitude)
+          : point.latitude;
     }
     return LatLngBounds(
       southwest: LatLng(south!, west!),
@@ -201,9 +214,8 @@ class _MapPageState extends State<MapPage> {
     final result = await Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (_) => LocationSelectionPage(
-          initialCurrentLocation: currentLocation,
-        ),
+        builder: (_) =>
+            LocationSelectionPage(initialCurrentLocation: currentLocation),
       ),
     );
 
@@ -215,10 +227,11 @@ class _MapPageState extends State<MapPage> {
         destination = result['destination'];
       });
 
-      final sourceCoords = currentLocation != null ? 
-          await _getLatLngFromAddress(currentLocation!) : sourceLatLng;
+      final sourceCoords = currentLocation != null
+          ? await _getLatLngFromAddress(currentLocation!)
+          : sourceLatLng;
       final destCoords = await _getLatLngFromAddress(destination!);
-      
+
       if (sourceCoords != null && destCoords != null) {
         setState(() {
           sourceLatLng = sourceCoords;
@@ -231,9 +244,9 @@ class _MapPageState extends State<MapPage> {
 
   Future<LatLng?> _getLatLngFromAddress(String address) async {
     final url = Uri.parse(
-      'https://maps.googleapis.com/maps/api/geocode/json?address=${Uri.encodeComponent(address)}&key=$googleApiKey'
+      'https://maps.googleapis.com/maps/api/geocode/json?address=${Uri.encodeComponent(address)}&key=$googleApiKey',
     );
-    
+
     try {
       final response = await http.get(url);
       if (response.statusCode == 200) {
@@ -264,9 +277,37 @@ class _MapPageState extends State<MapPage> {
             polylines: polylines,
             myLocationEnabled: true,
             myLocationButtonEnabled: true,
+            zoomControlsEnabled: false,
             onMapCreated: (controller) {
               _mapController = controller;
             },
+          ),
+
+          Positioned(
+            bottom:
+                160, // 👈 place above bottom widgets (like Start Journey button or SOS)
+            right: 16,
+            child: Column(
+              children: [
+                FloatingActionButton(
+                  mini: true,
+                  heroTag: "zoom_in",
+                  onPressed: () {
+                    _mapController?.animateCamera(CameraUpdate.zoomIn());
+                  },
+                  child: const Icon(Icons.add),
+                ),
+                const SizedBox(height: 8),
+                FloatingActionButton(
+                  mini: true,
+                  heroTag: "zoom_out",
+                  onPressed: () {
+                    _mapController?.animateCamera(CameraUpdate.zoomOut());
+                  },
+                  child: const Icon(Icons.remove),
+                ),
+              ],
+            ),
           ),
 
           SafeArea(
@@ -276,7 +317,12 @@ class _MapPageState extends State<MapPage> {
               decoration: BoxDecoration(
                 color: Colors.white,
                 borderRadius: BorderRadius.circular(8),
-                boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.1), blurRadius: 5)],
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.1),
+                    blurRadius: 5,
+                  ),
+                ],
               ),
               child: Row(
                 children: [
@@ -326,7 +372,10 @@ class _MapPageState extends State<MapPage> {
                     minimumSize: const Size.fromHeight(50),
                     backgroundColor: Colors.blue,
                   ),
-                  child: const Text("Start Journey", style: TextStyle(color: Colors.white)),
+                  child: const Text(
+                    "Start Journey",
+                    style: TextStyle(color: Colors.white),
+                  ),
                 ),
               ),
             ),
@@ -342,21 +391,29 @@ class _MapPageState extends State<MapPage> {
         mainAxisSize: MainAxisSize.min,
         children: [
           ElevatedButton(
-            onPressed: _startWalkAlone, // Updated to call _startWalkAlone directly
+            onPressed:
+                _startWalkAlone, // Updated to call _startWalkAlone directly
             style: ElevatedButton.styleFrom(
               minimumSize: const Size.fromHeight(50),
               backgroundColor: Colors.green,
             ),
-            child: const Text("🚶 Walk Alone (Start Now)", style: TextStyle(color: Colors.white)),
+            child: const Text(
+              "🚶 Walk Alone (Start Now)",
+              style: TextStyle(color: Colors.white),
+            ),
           ),
           const SizedBox(height: 12),
           ElevatedButton(
-            onPressed: _startMatching, // Updated to call _startMatching directly
+            onPressed:
+                _startMatching, // Updated to call _startMatching directly
             style: ElevatedButton.styleFrom(
               minimumSize: const Size.fromHeight(50),
               backgroundColor: Colors.orange,
             ),
-            child: const Text("🤝 Let's WALK Mode", style: TextStyle(color: Colors.white)),
+            child: const Text(
+              "🤝 Let's WALK Mode",
+              style: TextStyle(color: Colors.white),
+            ),
           ),
           const SizedBox(height: 12),
           TextButton(
