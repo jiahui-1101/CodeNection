@@ -5,6 +5,8 @@ import 'package:geolocator/geolocator.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'dart:async';
+import 'package:audioplayers/audioplayers.dart';
+import 'package:permission_handler/permission_handler.dart';
 
 class NavigationPage extends StatefulWidget {
   final String currentLocation;
@@ -43,6 +45,10 @@ class _NavigationPageState extends State<NavigationPage> {
   bool _isLoading = true;
   String _errorMessage = "";
 
+  // Safety Companion variables - Only show when walking alone
+  bool _showSafetyCompanion = false;
+  final AudioPlayer _safetyAudioPlayer = AudioPlayer();
+
   @override
   void initState() {
     super.initState();
@@ -52,7 +58,18 @@ class _NavigationPageState extends State<NavigationPage> {
   @override
   void dispose() {
     _locationTimer?.cancel();
+    _safetyAudioPlayer.dispose();
     super.dispose();
+  }
+
+  // Safety Companion methods - Only available when walking alone
+  void _toggleSafetyCompanion() {
+    // Only allow safety companion when walking alone
+    if (!widget.isWalkingTogether) {
+      setState(() {
+        _showSafetyCompanion = !_showSafetyCompanion;
+      });
+    }
   }
 
   Future<void> _initializeNavigation() async {
@@ -273,9 +290,9 @@ class _NavigationPageState extends State<NavigationPage> {
   }
 
   void _recalibrateLocation() async {
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(const SnackBar(content: Text("Recalibrating location...")));
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text("Recalibrating location..."))
+    );
     try {
       await _getCurrentLocationWithRetry();
     } catch (e) {
@@ -362,7 +379,7 @@ class _NavigationPageState extends State<NavigationPage> {
                 const SizedBox(height: 16),
 
                 // Next Instruction
-                if (_nextInstruction.isNotEmpty)
+                if (_nextInstruction.isNotEmpty && _isNavigating)
                   Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
@@ -405,7 +422,7 @@ class _NavigationPageState extends State<NavigationPage> {
                   ),
 
                 // Accuracy Warning
-                if (!_isLocationAccurate)
+                if (!_isLocationAccurate && _isNavigating)
                   Container(
                     margin: const EdgeInsets.only(top: 12),
                     padding: const EdgeInsets.all(12),
@@ -428,37 +445,6 @@ class _NavigationPageState extends State<NavigationPage> {
                             style: TextStyle(
                               color: Colors.orange.shade700,
                               fontSize: 12,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-
-                // Arrival Message
-                if (!_isNavigating)
-                  Container(
-                    margin: const EdgeInsets.only(top: 12),
-                    padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(
-                      color: Colors.green.shade50,
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: Colors.green.shade200),
-                    ),
-                    child: Row(
-                      children: [
-                        const Icon(
-                          Icons.check_circle,
-                          color: Colors.green,
-                          size: 20,
-                        ),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          child: Text(
-                            "Destination reached!",
-                            style: const TextStyle(
-                              color: Colors.green,
-                              fontWeight: FontWeight.bold,
                             ),
                           ),
                         ),
@@ -549,6 +535,72 @@ class _NavigationPageState extends State<NavigationPage> {
     );
   }
 
+  // Build the arrival overlay
+  Widget _buildArrivalOverlay() {
+    return Positioned.fill(
+      child: Container(
+        color: Colors.black.withOpacity(0.7),
+        child: Center(
+          child: Container(
+            width: MediaQuery.of(context).size.width * 0.8,
+            padding: const EdgeInsets.all(24),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(20),
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Icon(
+                  Icons.check_circle,
+                  color: Colors.green,
+                  size: 64,
+                ),
+                const SizedBox(height: 16),
+                const Text(
+                  "Destination Reached!",
+                  style: TextStyle(
+                    fontSize: 24,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.green,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 16),
+                Text(
+                  "You have arrived at ${widget.destination}",
+                  style: const TextStyle(
+                    fontSize: 16,
+                    color: Colors.grey,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 24),
+                ElevatedButton(
+                  onPressed: _endNavigation,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.blue,
+                    padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                  child: const Text(
+                    "Done",
+                    style: TextStyle(
+                      fontSize: 18,
+                      color: Colors.white,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -558,12 +610,15 @@ class _NavigationPageState extends State<NavigationPage> {
         foregroundColor: Colors.white,
         elevation: 0,
         actions: [
-          IconButton(
+          if (_isNavigating) IconButton(
             icon: const Icon(Icons.gps_fixed),
             onPressed: _recalibrateLocation,
             tooltip: "Recalibrate GPS",
           ),
-          IconButton(icon: const Icon(Icons.close), onPressed: _endNavigation),
+          IconButton(
+            icon: const Icon(Icons.close),
+            onPressed: _endNavigation,
+          ),
         ],
       ),
       body: _isLoading
@@ -610,72 +665,248 @@ class _NavigationPageState extends State<NavigationPage> {
                   myLocationEnabled: true,
                   myLocationButtonEnabled: false,
                   compassEnabled: true,
-                  zoomControlsEnabled: false, 
+                  zoomControlsEnabled: false,
                   onMapCreated: (controller) {
                     _controller.complete(controller);
                   },
                 ),
 
-                // Navigation Card
-                Positioned(
-                  top: 16,
-                  left: 0,
-                  right: 0,
-                  child: _buildNavigationCard(),
-                ),
+                // Navigation Card (only show when navigating)
+                if (_isNavigating)
+                  Positioned(
+                    top: 16,
+                    left: 0,
+                    right: 0,
+                    child: _buildNavigationCard(),
+                  ),
 
-                // Walking Together Card
-                if (widget.isWalkingTogether)
+                // Walking Together Card (only show when navigating and with partners)
+                if (widget.isWalkingTogether && _isNavigating)
                   Positioned(
                     bottom: 16,
                     left: 0,
                     right: 0,
                     child: _buildWalkingTogetherCard(),
                   ),
-                Positioned(
-                  bottom: widget.isWalkingTogether
-                      ? 170
-                      : 86, // 👈 a bit above My Location
-                  right: 16,
-                  child: Column(
-                    children: [
-                      FloatingActionButton(
-                        mini: true,
-                        heroTag: "zoom_in",
-                        backgroundColor: Colors.white,
-                        onPressed: () async {
-                          final controller = await _controller.future;
-                          controller.animateCamera(CameraUpdate.zoomIn());
-                        },
-                        child: const Icon(Icons.add, color: Colors.black),
-                      ),
-                      const SizedBox(height: 8),
-                      FloatingActionButton(
-                        mini: true,
-                        heroTag: "zoom_out",
-                        backgroundColor: Colors.white,
-                        onPressed: () async {
-                          final controller = await _controller.future;
-                          controller.animateCamera(CameraUpdate.zoomOut());
-                        },
-                        child: const Icon(Icons.remove, color: Colors.black),
-                      ),
-                    ],
+
+                // Safety Companion Bottom Sheet - Only show when walking alone and navigating
+                if (_showSafetyCompanion && !widget.isWalkingTogether && _isNavigating)
+                  Positioned(
+                    bottom: widget.isWalkingTogether ? 170 : 86,
+                    left: 16,
+                    right: 16,
+                    child: const SafetyCompanionBottomSheet(),
                   ),
-                ),
-                // My Location Button
-                Positioned(
-                  bottom: widget.isWalkingTogether ? 100 : 16,
-                  right: 16,
-                  child: FloatingActionButton(
-                    mini: true,
-                    backgroundColor: Colors.white,
-                    onPressed: _recalibrateLocation,
-                    child: const Icon(Icons.my_location, color: Colors.blue),
+
+                // Safety Companion Toggle Button - Only show when walking alone and navigating
+                if (!widget.isWalkingTogether && _isNavigating)
+                  Positioned(
+                    bottom: widget.isWalkingTogether ? 100 : 16,
+                    left: 16,
+                    child: FloatingActionButton(
+                      mini: true,
+                      backgroundColor: _showSafetyCompanion ? Colors.blue : Colors.white,
+                      onPressed: _toggleSafetyCompanion,
+                      child: Icon(
+                        Icons.record_voice_over,
+                        color: _showSafetyCompanion ? Colors.white : Colors.blue,
+                      ),
+                    ),
                   ),
-                ),
+
+                // Zoom Controls (only show when navigating)
+                if (_isNavigating)
+                  Positioned(
+                    bottom: widget.isWalkingTogether ? 170 : 86,
+                    right: 16,
+                    child: Column(
+                      children: [
+                        FloatingActionButton(
+                          mini: true,
+                          heroTag: "zoom_in",
+                          backgroundColor: Colors.white,
+                          onPressed: () async {
+                            final controller = await _controller.future;
+                            controller.animateCamera(CameraUpdate.zoomIn());
+                          },
+                          child: const Icon(Icons.add, color: Colors.black),
+                        ),
+                        const SizedBox(height: 8),
+                        FloatingActionButton(
+                          mini: true,
+                          heroTag: "zoom_out",
+                          backgroundColor: Colors.white,
+                          onPressed: () async {
+                            final controller = await _controller.future;
+                            controller.animateCamera(CameraUpdate.zoomOut());
+                          },
+                          child: const Icon(Icons.remove, color: Colors.black),
+                        ),
+                      ],
+                    ),
+                  ),
+
+                // My Location Button (only show when navigating)
+                if (_isNavigating)
+                  Positioned(
+                    bottom: widget.isWalkingTogether ? 100 : 16,
+                    right: 16,
+                    child: FloatingActionButton(
+                      mini: true,
+                      backgroundColor: Colors.white,
+                      onPressed: _recalibrateLocation,
+                      child: const Icon(Icons.my_location, color: Colors.blue),
+                    ),
+                  ),
+
+                // Arrival Overlay (show when destination is reached)
+                if (!_isNavigating)
+                  _buildArrivalOverlay(),
               ],
             ),
+    );
+  }
+}
+
+// Safety Companion Bottom Sheet Widget
+class SafetyCompanionBottomSheet extends StatefulWidget {
+  const SafetyCompanionBottomSheet({super.key});
+
+  @override
+  State<SafetyCompanionBottomSheet> createState() => _SafetyCompanionBottomSheetState();
+}
+
+class _SafetyCompanionBottomSheetState extends State<SafetyCompanionBottomSheet> {
+  final AudioPlayer _audioPlayer = AudioPlayer();
+  bool _isPlaying = false;
+  int _currentMessageIndex = 0;
+  
+  final List<String> _encouragingMessages = [
+    'assets/audio/mom_encouragement.mp3',
+    'assets/audio/dad_support.mp3',
+    'assets/audio/friend_cheer.mp3',
+  ];
+
+  @override
+  void initState() {
+    super.initState();
+    _setupAudioPlayer();
+  }
+
+  void _setupAudioPlayer() {
+    _audioPlayer.onPlayerComplete.listen((event) {
+      setState(() {
+        _isPlaying = false;
+        _playNextMessage();
+      });
+    });
+  }
+
+  Future<void> _playNextMessage() async {
+    await Future.delayed(const Duration(seconds: 30));
+    setState(() {
+      _currentMessageIndex = (_currentMessageIndex + 1) % _encouragingMessages.length;
+    });
+    await _playAudio(_encouragingMessages[_currentMessageIndex]);
+  }
+
+  Future<void> _playAudio(String audioPath) async {
+    try {
+      setState(() {
+        _isPlaying = true;
+      });
+      await _audioPlayer.play(AssetSource(audioPath));
+    } catch (e) {
+      print('Error playing audio: $e');
+      setState(() {
+        _isPlaying = false;
+      });
+    }
+  }
+
+  Future<void> _stopAudio() async {
+    await _audioPlayer.stop();
+    setState(() {
+      _isPlaying = false;
+    });
+  }
+
+  String _getMessageName(String path) {
+    final Map<String, String> messageNames = {
+      'assets/audio/mom_encouragement.mp3': "Mom's Voice",
+      'assets/audio/dad_support.mp3': "Dad's Voice",
+      'assets/audio/friend_cheer.mp3': "Friend's Voice",
+    };
+    return messageNames[path] ?? 'Encouragement';
+  }
+
+  @override
+  void dispose() {
+    _audioPlayer.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.2),
+            blurRadius: 10,
+            offset: const Offset(0, -2),
+          ),
+        ],
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const Text(
+            'Virtual Safety Companion',
+            style: TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.bold,
+              color: Colors.blue,
+            ),
+          ),
+          const SizedBox(height: 12),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceAround,
+            children: [
+              IconButton(
+                icon: Icon(
+                  _isPlaying ? Icons.pause : Icons.play_arrow,
+                  size: 32,
+                  color: Colors.blue,
+                ),
+                onPressed: _isPlaying ? _stopAudio : () => _playAudio(_encouragingMessages[_currentMessageIndex]),
+              ),
+              Text(
+                _getMessageName(_encouragingMessages[_currentMessageIndex]),
+                style: const TextStyle(fontSize: 14),
+              ),
+              IconButton(
+                icon: const Icon(Icons.skip_next, size: 32, color: Colors.blue),
+                onPressed: () {
+                  setState(() {
+                    _currentMessageIndex = (_currentMessageIndex + 1) % _encouragingMessages.length;
+                  });
+                  _playAudio(_encouragingMessages[_currentMessageIndex]);
+                },
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          const Text(
+            'Hear encouraging messages during your walk',
+            style: TextStyle(fontSize: 12, color: Colors.grey),
+            textAlign: TextAlign.center,
+          ),
+        ],
+      ),
     );
   }
 }
