@@ -27,13 +27,13 @@ class NavigationPage extends StatefulWidget {
 class _NavigationPageState extends State<NavigationPage> {
   final Completer<GoogleMapController> _controller = Completer();
   final String googleApiKey = "AIzaSyALfVigfIlFFmcVIEy-5OGos42GViiQe-M";
-  
+
   LatLng? _currentPosition;
   LatLng? _destinationLatLng;
   Set<Marker> _markers = {};
   Set<Polyline> _polylines = {};
   Timer? _locationTimer;
-  
+
   double _distanceRemaining = 0;
   double _timeRemaining = 0;
   String _nextInstruction = "";
@@ -64,17 +64,17 @@ class _NavigationPageState extends State<NavigationPage> {
 
       // Get destination coordinates
       _destinationLatLng = await _getLatLngFromAddress(widget.destination);
-      
+
       if (_destinationLatLng == null) {
         throw Exception("Could not find destination coordinates");
       }
-      
+
       // Get current position with high accuracy
       await _getCurrentLocationWithRetry();
-      
+
       // Calculate route
       await _calculateRoute();
-      
+
       // Start location updates
       _startLocationUpdates();
 
@@ -112,7 +112,6 @@ class _NavigationPageState extends State<NavigationPage> {
 
         if (_isLocationAccurate) break;
         await Future.delayed(const Duration(seconds: 2));
-        
       } catch (e) {
         print('Error getting location (attempt ${i + 1}): $e');
         if (i == retryCount - 1) {
@@ -124,9 +123,9 @@ class _NavigationPageState extends State<NavigationPage> {
 
   Future<LatLng?> _getLatLngFromAddress(String address) async {
     final url = Uri.parse(
-      'https://maps.googleapis.com/maps/api/geocode/json?address=${Uri.encodeComponent(address)}&key=$googleApiKey'
+      'https://maps.googleapis.com/maps/api/geocode/json?address=${Uri.encodeComponent(address)}&key=$googleApiKey',
     );
-    
+
     try {
       final response = await http.get(url);
       if (response.statusCode == 200) {
@@ -151,51 +150,56 @@ class _NavigationPageState extends State<NavigationPage> {
       'origin=${_currentPosition!.latitude},${_currentPosition!.longitude}&'
       'destination=${_destinationLatLng!.latitude},${_destinationLatLng!.longitude}&'
       'mode=walking&'
-      'key=$googleApiKey'
+      'key=$googleApiKey',
     );
 
     try {
       final response = await http.get(url);
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
-        
+
         if (data['status'] == 'OK') {
           final points = data['routes'][0]['overview_polyline']['points'];
           final List<LatLng> routeCoordinates = _decodePolyline(points);
-          
+
           setState(() {
             _markers = {
               Marker(
                 markerId: const MarkerId('current'),
                 position: _currentPosition!,
-                icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueBlue),
+                icon: BitmapDescriptor.defaultMarkerWithHue(
+                  BitmapDescriptor.hueBlue,
+                ),
                 infoWindow: const InfoWindow(title: 'Your Location'),
               ),
               Marker(
                 markerId: const MarkerId('destination'),
                 position: _destinationLatLng!,
-                icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueRed),
+                icon: BitmapDescriptor.defaultMarkerWithHue(
+                  BitmapDescriptor.hueRed,
+                ),
                 infoWindow: InfoWindow(title: widget.destination),
-              )
+              ),
             };
-            
+
             _polylines = {
               Polyline(
                 polylineId: const PolylineId('route'),
                 points: routeCoordinates,
                 color: Colors.blue.shade600,
                 width: 6,
-              )
+              ),
             };
-            
+
             final route = data['routes'][0]['legs'][0];
             _distanceRemaining = route['distance']['value'] / 1000;
             _timeRemaining = route['duration']['value'] / 60;
-            
+
             if (data['routes'][0]['legs'][0]['steps'].isNotEmpty) {
-              _nextInstruction = data['routes'][0]['legs'][0]['steps'][0]['html_instructions']
-                  .toString()
-                  .replaceAll(RegExp(r'<[^>]*>'), '');
+              _nextInstruction =
+                  data['routes'][0]['legs'][0]['steps'][0]['html_instructions']
+                      .toString()
+                      .replaceAll(RegExp(r'<[^>]*>'), '');
             }
           });
         }
@@ -259,7 +263,7 @@ class _NavigationPageState extends State<NavigationPage> {
     setState(() {
       _distanceRemaining = distance / 1000;
       _timeRemaining = (_distanceRemaining / 5) * 60;
-      
+
       if (distance < 50) {
         _isNavigating = false;
         _nextInstruction = "You have arrived at your destination!";
@@ -269,9 +273,9 @@ class _NavigationPageState extends State<NavigationPage> {
   }
 
   void _recalibrateLocation() async {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text("Recalibrating location...")),
-    );
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(const SnackBar(content: Text("Recalibrating location...")));
     try {
       await _getCurrentLocationWithRetry();
     } catch (e) {
@@ -379,7 +383,11 @@ class _NavigationPageState extends State<NavigationPage> {
                         ),
                         child: Row(
                           children: [
-                            const Icon(Icons.turn_right, color: Colors.blue, size: 20),
+                            const Icon(
+                              Icons.turn_right,
+                              color: Colors.blue,
+                              size: 20,
+                            ),
                             const SizedBox(width: 8),
                             Expanded(
                               child: Text(
@@ -408,7 +416,11 @@ class _NavigationPageState extends State<NavigationPage> {
                     ),
                     child: Row(
                       children: [
-                        Icon(Icons.warning, color: Colors.orange.shade700, size: 20),
+                        Icon(
+                          Icons.warning,
+                          color: Colors.orange.shade700,
+                          size: 20,
+                        ),
                         const SizedBox(width: 8),
                         Expanded(
                           child: Text(
@@ -435,7 +447,11 @@ class _NavigationPageState extends State<NavigationPage> {
                     ),
                     child: Row(
                       children: [
-                        const Icon(Icons.check_circle, color: Colors.green, size: 20),
+                        const Icon(
+                          Icons.check_circle,
+                          color: Colors.green,
+                          size: 20,
+                        ),
                         const SizedBox(width: 8),
                         Expanded(
                           child: Text(
@@ -457,7 +473,12 @@ class _NavigationPageState extends State<NavigationPage> {
     );
   }
 
-  Widget _buildMetricItem(IconData icon, String value, String label, Color color) {
+  Widget _buildMetricItem(
+    IconData icon,
+    String value,
+    String label,
+    Color color,
+  ) {
     return Column(
       children: [
         Icon(icon, color: color, size: 28),
@@ -471,13 +492,7 @@ class _NavigationPageState extends State<NavigationPage> {
           ),
         ),
         const SizedBox(height: 2),
-        Text(
-          label,
-          style: const TextStyle(
-            fontSize: 12,
-            color: Colors.grey,
-          ),
-        ),
+        Text(label, style: const TextStyle(fontSize: 12, color: Colors.grey)),
       ],
     );
   }
@@ -548,10 +563,7 @@ class _NavigationPageState extends State<NavigationPage> {
             onPressed: _recalibrateLocation,
             tooltip: "Recalibrate GPS",
           ),
-          IconButton(
-            icon: const Icon(Icons.close),
-            onPressed: _endNavigation,
-          ),
+          IconButton(icon: const Icon(Icons.close), onPressed: _endNavigation),
         ],
       ),
       body: _isLoading
@@ -566,73 +578,104 @@ class _NavigationPageState extends State<NavigationPage> {
               ),
             )
           : _errorMessage.isNotEmpty
-            ? Center(
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    const Icon(Icons.error_outline, size: 64, color: Colors.red),
-                    const SizedBox(height: 16),
-                    Text(
-                      _errorMessage,
-                      textAlign: TextAlign.center,
-                      style: const TextStyle(fontSize: 16),
-                    ),
-                    const SizedBox(height: 16),
-                    ElevatedButton(
-                      onPressed: _initializeNavigation,
-                      child: const Text("Retry"),
-                    ),
-                  ],
-                ),
-              )
-            : Stack(
+          ? Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  // Google Map
-                  GoogleMap(
-                    initialCameraPosition: CameraPosition(
-                      target: _currentPosition ?? const LatLng(0, 0),
-                      zoom: 15,
-                    ),
-                    markers: _markers,
-                    polylines: _polylines,
-                    myLocationEnabled: true,
-                    myLocationButtonEnabled: false,
-                    compassEnabled: true,
-                    onMapCreated: (controller) {
-                      _controller.complete(controller);
-                    },
+                  const Icon(Icons.error_outline, size: 64, color: Colors.red),
+                  const SizedBox(height: 16),
+                  Text(
+                    _errorMessage,
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(fontSize: 16),
                   ),
-
-                  // Navigation Card
-                  Positioned(
-                    top: 16,
-                    left: 0,
-                    right: 0,
-                    child: _buildNavigationCard(),
-                  ),
-
-                  // Walking Together Card
-                  if (widget.isWalkingTogether)
-                    Positioned(
-                      bottom: 16,
-                      left: 0,
-                      right: 0,
-                      child: _buildWalkingTogetherCard(),
-                    ),
-
-                  // My Location Button
-                  Positioned(
-                    bottom: widget.isWalkingTogether ? 100 : 16,
-                    right: 16,
-                    child: FloatingActionButton(
-                      mini: true,
-                      backgroundColor: Colors.white,
-                      onPressed: _recalibrateLocation,
-                      child: const Icon(Icons.my_location, color: Colors.blue),
-                    ),
+                  const SizedBox(height: 16),
+                  ElevatedButton(
+                    onPressed: _initializeNavigation,
+                    child: const Text("Retry"),
                   ),
                 ],
               ),
+            )
+          : Stack(
+              children: [
+                // Google Map
+                GoogleMap(
+                  initialCameraPosition: CameraPosition(
+                    target: _currentPosition ?? const LatLng(0, 0),
+                    zoom: 15,
+                  ),
+                  markers: _markers,
+                  polylines: _polylines,
+                  myLocationEnabled: true,
+                  myLocationButtonEnabled: false,
+                  compassEnabled: true,
+                  zoomControlsEnabled: false, 
+                  onMapCreated: (controller) {
+                    _controller.complete(controller);
+                  },
+                ),
+
+                // Navigation Card
+                Positioned(
+                  top: 16,
+                  left: 0,
+                  right: 0,
+                  child: _buildNavigationCard(),
+                ),
+
+                // Walking Together Card
+                if (widget.isWalkingTogether)
+                  Positioned(
+                    bottom: 16,
+                    left: 0,
+                    right: 0,
+                    child: _buildWalkingTogetherCard(),
+                  ),
+                Positioned(
+                  bottom: widget.isWalkingTogether
+                      ? 170
+                      : 86, // 👈 a bit above My Location
+                  right: 16,
+                  child: Column(
+                    children: [
+                      FloatingActionButton(
+                        mini: true,
+                        heroTag: "zoom_in",
+                        backgroundColor: Colors.white,
+                        onPressed: () async {
+                          final controller = await _controller.future;
+                          controller.animateCamera(CameraUpdate.zoomIn());
+                        },
+                        child: const Icon(Icons.add, color: Colors.black),
+                      ),
+                      const SizedBox(height: 8),
+                      FloatingActionButton(
+                        mini: true,
+                        heroTag: "zoom_out",
+                        backgroundColor: Colors.white,
+                        onPressed: () async {
+                          final controller = await _controller.future;
+                          controller.animateCamera(CameraUpdate.zoomOut());
+                        },
+                        child: const Icon(Icons.remove, color: Colors.black),
+                      ),
+                    ],
+                  ),
+                ),
+                // My Location Button
+                Positioned(
+                  bottom: widget.isWalkingTogether ? 100 : 16,
+                  right: 16,
+                  child: FloatingActionButton(
+                    mini: true,
+                    backgroundColor: Colors.white,
+                    onPressed: _recalibrateLocation,
+                    child: const Icon(Icons.my_location, color: Colors.blue),
+                  ),
+                ),
+              ],
+            ),
     );
   }
 }
