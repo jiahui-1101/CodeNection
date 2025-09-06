@@ -137,13 +137,6 @@ You can run **JustBrightForUTM** in two ways:
      flutter run
      ```  
 
-#### 3. Run from an APK (Android only)  
-If you just want to test the app without Flutter SDK:  
-1. Download the generated `.apk` from `build/app/outputs/flutter-apk/app-release.apk`.  
-2. Transfer to your Android device.  
-3. Open the file to install (you may need to enable *Install from Unknown Sources* in settings).  
-
-
 
 ## 📖 Documentation  
 - **System Architecture:** [Insert link or diagram if available]  
