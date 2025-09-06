@@ -1,6 +1,6 @@
 # JustBrightForUTM :sunny: 
 <p align="center">
-  <img src="img/utmbright.jpg" width="150" hspace="20">
+  <img src="assets/images/utmbright logo.jpg" width="150" hspace="20">
 </p>
 
 <details>
@@ -152,13 +152,12 @@ If you just want to test the app without Flutter SDK:
 
 
 ## 👨‍💻 Contributors  
-- Team **JustBrightForUTM** 
+- Team **JustBrightForUTM**
 
-  - Group Member:
-  - 1.  Lee Mei Shuet
-  - 2.  Loh Su Ting
-  - 3.  Wong Jia Hui
-  - 4.  Wong Zi Qi
+  -   Lee Mei Shuet
+  -   Loh Su Ting
+  -   Wong Jia Hui
+  -   Wong Zi Qi
 
 
 
