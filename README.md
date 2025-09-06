@@ -7,28 +7,28 @@
   <summary>Table of Contents</summary>
   <ol>
     <li>
-      <a href="#project-description">Track & Problem Statement</a>
+      <a href="#-track--problem-statement">Track & Problem Statement</a>
     </li>
     <li>
-      <a href="#how-it-worked">Introduction</a>
+      <a href="#-introduction">Introduction</a>
     </li>
     <li>
-      <a href="#objectives">Core Features</a>
+      <a href="#-core-features">Core Features</a>
     </li>
     <li>
-      <a href="#technologies-used">Technical Stack</a>
+      <a href="#-technical-stack">Technical Stack</a>
     </li>
       <li>
-      <a href="#setup-guide">Usage</a>
+      <a href="#-usage">Usage</a>
     </li>
     <li>
       <a href="#setup-guide">Setup Guide</a>
     </li>
       <li>
-      <a href="#setup-guide">Documentation</a>
+      <a href="#-documentation">Documentation</a>
     </li>
       <li>
-      <a href="#setup-guide">Contributors</a>
+      <a href="#-contributors">Contributors</a>
     </li>
   </ol>
 </details>
@@ -84,9 +84,9 @@ The app delivers its value through **three main features**:
 
 
 ## Technical Stack  :computer:
-- **Frontend:** React Native / Flutter *(specify)*  
-- **Backend:** Firebase / Node.js / Express *(specify)*  
-- **Database:** Firestore / MySQL / PostgreSQL *(specify)*  
+- **Frontend:** Flutter 
+- **Backend:** Firebase / Node.js / Express 
+- **Database:** MySQL
 - **Other Integrations:**  
   - Maps API (Google Maps / OpenStreetMap)  
   - Real-time Audio Streaming  
