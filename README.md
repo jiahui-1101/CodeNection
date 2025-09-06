@@ -4,14 +4,14 @@
 </p>
 
 ## Table of Contents
-- [Track & Problem Statement](#track--problem-statement)
-- [Introduction](#introduction)
-- [Core Features](#core-features)
-- [Technical Stack](#technical-stack)
-- [Usage](#usage)
-- [Setup Guide](#setup-guide)
-- [Documentation](#documentation)
-- [Contributors](#contributors)
+- [Track & Problem Statement](#-track--problem-statement)
+- [Introduction](#-introduction)
+- [Core Features](#-core-features)
+- [Technical Stack](#-technical-stack)
+- [Usage](#-usage)
+- [Setup Guide](#-setup-guide)
+- [Documentation](#-documentation)
+- [Contributors](#-contributors)
 
 ---
 ## Track & Problem Statement  :mag_right:
