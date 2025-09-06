@@ -113,7 +113,7 @@ You can run **JustBrightForUTM** in two ways:
 
 
 ## 📖 Documentation  
-- **Demo / Walkthrough:** [Add YouTube / Loom link if available]  
+- **Demo / Walkthrough:** https://youtu.be/3rg5cUewwSQ
 - **Technical Stack:** Flutter + C++ + MySQL 
 
 
