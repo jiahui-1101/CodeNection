@@ -5,7 +5,7 @@ import 'package:audioplayers/audioplayers.dart';
 import 'package:hello_flutter/GuardianModeScreen.dart';
 
 class SmartSosButton extends StatefulWidget {              //  SOS按钮与扇形菜单 (SmartSosButton Widget) 
-  const SmartSosButton({super.key});               
+  const SmartSosButton({super.key});
 
   @override
   State<SmartSosButton> createState() => _SmartSosButtonState();

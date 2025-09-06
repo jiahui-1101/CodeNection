@@ -7,6 +7,7 @@ import 'dart:convert';
 import 'dart:async';
 import 'package:audioplayers/audioplayers.dart';
 import 'package:permission_handler/permission_handler.dart';
+import 'SmartSosButton.dart'; // Import the SOS button
 
 class NavigationPage extends StatefulWidget {
   final String currentLocation;
@@ -714,10 +715,10 @@ class _NavigationPageState extends State<NavigationPage> {
                     ),
                   ),
 
-                // Zoom Controls (only show when navigating)
+                // Zoom Controls (only show when navigating) - Moved up to avoid SOS button
                 if (_isNavigating)
                   Positioned(
-                    bottom: widget.isWalkingTogether ? 170 : 86,
+                    bottom: widget.isWalkingTogether ? 170 : 140, // Moved up
                     right: 16,
                     child: Column(
                       children: [
@@ -746,10 +747,10 @@ class _NavigationPageState extends State<NavigationPage> {
                     ),
                   ),
 
-                // My Location Button (only show when navigating)
+                // My Location Button (only show when navigating) - Moved up to avoid SOS button
                 if (_isNavigating)
                   Positioned(
-                    bottom: widget.isWalkingTogether ? 100 : 16,
+                    bottom: widget.isWalkingTogether ? 100 : 70, // Moved up
                     right: 16,
                     child: FloatingActionButton(
                       mini: true,
@@ -758,6 +759,13 @@ class _NavigationPageState extends State<NavigationPage> {
                       child: const Icon(Icons.my_location, color: Colors.blue),
                     ),
                   ),
+
+                // SOS Button - Always visible
+                const Positioned(
+                  bottom: 20,
+                  right: 20,
+                  child: SmartSosButton(),
+                ),
 
                 // Arrival Overlay (show when destination is reached)
                 if (!_isNavigating)
@@ -780,17 +788,19 @@ class _SafetyCompanionBottomSheetState extends State<SafetyCompanionBottomSheet>
   final AudioPlayer _audioPlayer = AudioPlayer();
   bool _isPlaying = false;
   int _currentMessageIndex = 0;
+  double _volume = 1.0; // Volume level (0.0 to 1.0)
   
   final List<String> _encouragingMessages = [
-    'assets/audio/mom_encouragement.mp3',
-    'assets/audio/dad_support.mp3',
-    'assets/audio/friend_cheer.mp3',
+    'audio/mom_encouragement.mp3',
+    'audio/dad_support.mp3',
+    'audio/friend_cheer.mp3',
   ];
 
   @override
   void initState() {
     super.initState();
     _setupAudioPlayer();
+    _setMaxVolume(); // Set max volume when initialized
   }
 
   void _setupAudioPlayer() {
@@ -802,42 +812,99 @@ class _SafetyCompanionBottomSheetState extends State<SafetyCompanionBottomSheet>
     });
   }
 
+  Future<void> _setMaxVolume() async {
+    try {
+      await _audioPlayer.setVolume(1.0); // Set to maximum volume (1.0)
+      setState(() {
+        _volume = 1.0;
+      });
+    } catch (e) {
+      print('Error setting volume: $e');
+    }
+  }
+
+  Future<void> _increaseVolume() async {
+    double newVolume = (_volume + 0.1).clamp(0.0, 1.0);
+    try {
+      await _audioPlayer.setVolume(newVolume);
+      setState(() {
+        _volume = newVolume;
+      });
+    } catch (e) {
+      print('Error increasing volume: $e');
+    }
+  }
+
+  Future<void> _decreaseVolume() async {
+    double newVolume = (_volume - 0.1).clamp(0.0, 1.0);
+    try {
+      await _audioPlayer.setVolume(newVolume);
+      setState(() {
+        _volume = newVolume;
+      });
+    } catch (e) {
+      print('Error decreasing volume: $e');
+    }
+  }
+
   Future<void> _playNextMessage() async {
     await Future.delayed(const Duration(seconds: 30));
-    setState(() {
-      _currentMessageIndex = (_currentMessageIndex + 1) % _encouragingMessages.length;
-    });
-    await _playAudio(_encouragingMessages[_currentMessageIndex]);
+    if (mounted) {
+      setState(() {
+        _currentMessageIndex = (_currentMessageIndex + 1) % _encouragingMessages.length;
+      });
+      await _playAudio(_encouragingMessages[_currentMessageIndex]);
+    }
   }
 
   Future<void> _playAudio(String audioPath) async {
     try {
+      // Set volume before playing
+      await _audioPlayer.setVolume(_volume);
+      
       setState(() {
         _isPlaying = true;
       });
+      
+      // Use AssetSource with the correct path
       await _audioPlayer.play(AssetSource(audioPath));
     } catch (e) {
       print('Error playing audio: $e');
+      if (mounted) {
+        setState(() {
+          _isPlaying = false;
+        });
+        // Show error message to user
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text("Could not play audio")),
+        );
+      }
+    }
+  }
+
+  Future<void> _stopAudio() async {
+    await _audioPlayer.stop();
+    if (mounted) {
       setState(() {
         _isPlaying = false;
       });
     }
   }
 
-  Future<void> _stopAudio() async {
-    await _audioPlayer.stop();
-    setState(() {
-      _isPlaying = false;
-    });
-  }
-
   String _getMessageName(String path) {
     final Map<String, String> messageNames = {
-      'assets/audio/mom_encouragement.mp3': "Mom's Voice",
-      'assets/audio/dad_support.mp3': "Dad's Voice",
-      'assets/audio/friend_cheer.mp3': "Friend's Voice",
+      'audio/mom_encouragement.mp3': "Mom's Voice",
+      'audio/dad_support.mp3': "Dad's Voice",
+      'audio/friend_cheer.mp3': "Friend's Voice",
     };
     return messageNames[path] ?? 'Encouragement';
+  }
+
+  String _getVolumeIcon() {
+    if (_volume == 0.0) return '🔇';
+    if (_volume <= 0.3) return '🔈';
+    if (_volume <= 0.6) return '🔉';
+    return '🔊';
   }
 
   @override
@@ -873,6 +940,28 @@ class _SafetyCompanionBottomSheetState extends State<SafetyCompanionBottomSheet>
             ),
           ),
           const SizedBox(height: 12),
+          
+          // Volume Control Row
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              IconButton(
+                icon: const Icon(Icons.volume_down, color: Colors.blue),
+                onPressed: _decreaseVolume,
+              ),
+              Text(
+                '${_getVolumeIcon()} ${(_volume * 100).toInt()}%',
+                style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
+              ),
+              IconButton(
+                icon: const Icon(Icons.volume_up, color: Colors.blue),
+                onPressed: _increaseVolume,
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          
+          // Playback Controls
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceAround,
             children: [
