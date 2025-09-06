@@ -7,28 +7,28 @@
   <summary>Table of Contents</summary>
   <ol>
     <li>
-      <a href="#-track--problem-statement">Track & Problem Statement</a>
+      <a href="#track--problem-statement">Track & Problem Statement</a>
     </li>
     <li>
-      <a href="#-introduction">Introduction</a>
+      <a href="#introduction">Introduction</a>
     </li>
     <li>
-      <a href="#-core-features">Core Features</a>
+      <a href="#core-features">Core Features</a>
     </li>
     <li>
-      <a href="#-technical-stack">Technical Stack</a>
+      <a href="#technical-stack">Technical Stack</a>
     </li>
       <li>
-      <a href="#-usage">Usage</a>
+      <a href="#usage">Usage</a>
     </li>
     <li>
       <a href="#setup-guide">Setup Guide</a>
     </li>
       <li>
-      <a href="#-documentation">Documentation</a>
+      <a href="#documentation">Documentation</a>
     </li>
       <li>
-      <a href="#-contributors">Contributors</a>
+      <a href="#contributors">Contributors</a>
     </li>
   </ol>
 </details>
