@@ -6,37 +6,21 @@
 <details>
   <summary>Table of Contents</summary>
   <ol>
-    <li>
-      <a href="#track--problem-statement">Track & Problem Statement</a>
-    </li>
-    <li>
-      <a href="#introduction">Introduction</a>
-    </li>
-    <li>
-      <a href="#core-features">Core Features</a>
-    </li>
-    <li>
-      <a href="#technical-stack">Technical Stack</a>
-    </li>
-      <li>
-      <a href="#usage">Usage</a>
-    </li>
-    <li>
-      <a href="#setup-guide">Setup Guide</a>
-    </li>
-      <li>
-      <a href="#documentation">Documentation</a>
-    </li>
-      <li>
-      <a href="#contributors">Contributors</a>
-    </li>
+    <li><a href="#track--problem-statement">Track & Problem Statement</a></li>
+    <li><a href="#introduction">Introduction</a></li>
+    <li><a href="#core-features">Core Features</a></li>
+    <li><a href="#technical-stack">Technical Stack</a></li>
+    <li><a href="#usage">Usage</a></li>
+    <li><a href="#setup-guide">Setup Guide</a></li>
+    <li><a href="#documentation">Documentation</a></li>
+    <li><a href="#contributors">Contributors</a></li>
   </ol>
 </details>
 
 
 ##  Track & Problem Statement  :mag_right:
-**Track:** CodeNection 2025-Track 2: Campus Safety App 
-**Problem Statement:** *Current safety infrastructure often lacks comprehensive coverage, real-time responsiveness, and accessibility features that address the diverse needs of the campus community, leaving gaps in protection and support.*  
+**Track:** CodeNection 2025-Track 2: Campus Safety App.
+**Problem Statement:** Current safety infrastructure often lacks comprehensive coverage, real-time responsiveness, and accessibility features that address the diverse needs of the campus community, leaving gaps in protection and support.*  
 
 ##  Introduction  :mega:
 **JustBrightForUTM** is a *Smart Campus Mobility & Safety Companion* designed to enhance student safety and mobility.  
@@ -79,7 +63,7 @@ The app delivers its value through **three main features**:
 
 ## Technical Stack  :computer:
 - **Frontend:** Flutter 
-- **Backend:** Firebase / Node.js / Express 
+- **Backend:** C++ / Java
 - **Database:** MySQL
 - **Other Integrations:**  
   - Maps API (Google Maps / OpenStreetMap)  
@@ -133,9 +117,8 @@ You can run **JustBrightForUTM** in two ways:
 
 
 ## 📖 Documentation  
-- **System Architecture:** [Insert link or diagram if available]  
 - **Demo / Walkthrough:** [Add YouTube / Loom link if available]  
-- **Technical Stack:** [List here – e.g., Flutter + Firebase, React Native, Node.js, etc.]  
+- **Technical Stack:** Flutter + C++ + MySQL 
 
 
 ## 👨‍💻 Contributors  
