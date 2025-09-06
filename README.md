@@ -53,14 +53,9 @@ The app delivers its value through **three main features**:
 ##  Core Features  :star2:
 
 #### 1. Intelligent Navigation & Community Mobility  
-- **Walking Mode**  :walking:
   - **"Let's Walk!"** – Anonymous, temporary walking groups for safe companionship.  
   - **Safe Route Algorithm** – Chooses routes based on streetlight coverage, security post proximity, and reported hotspots.  
   - **Virtual Safety Companion** – Plays pre-recorded supportive voice notes from family/friends.  
-  - **One-Tap Flashlight** – Quick access flashlight inside the walking interface.  
-
-- **Driving Mode**  :car:
-  - **Campus Waze** – Live, community-sourced updates on closures, congestion, and campus events.
 
 
 #### 2. The Ultimate SOS Button  :sos:
@@ -78,7 +73,6 @@ The app delivers its value through **three main features**:
 
 #### 3. Community Safety Ecosystem  :mailbox:
 - **Incident Reporting** – For hazards & suspicious activity.  
-- **Safety Hotspot Map** – Real-time safety check-ins create a “safety weather map.”  
 - **Resources Hub** – Centralized emergency contacts & support channels.  
 
 
@@ -95,7 +89,7 @@ The app delivers its value through **three main features**:
 
 ## Usage  :fire:
 1. Launch the app.  
-2. Select **Walking Mode** or **Driving Mode** to access navigation mode.  
+2. Enter the current location and destination access navigation mode.  
 3. Use *"Let's Walk!"* to walk in groups or let the app suggest safe routes.  
 4. In emergencies, tap and hold the **SOS button** to activate alerts.  
 5. Explore the **Safety Ecosystem** for reports, hotspots, and resources.  
