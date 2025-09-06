@@ -109,7 +109,7 @@ You can run **JustBrightForUTM** in two ways:
   2. In project root, run:  
      ```bash
      flutter devices   # verify your phone is detected
-     flutter run -d <device_id>
+     flutter run -d <device_id> --target=lib/demo.dart
      ```  
   3. The prototype will launch on your device.  
 
@@ -118,7 +118,7 @@ You can run **JustBrightForUTM** in two ways:
   2. Open the project in Xcode (`ios/Runner.xcworkspace`) to set your Apple Developer Team.  
   3. In terminal, run:  
      ```bash
-     flutter run -d <device_id>
+     flutter run -d <device_id> --target=lib/demo.dart
      ```  
 
 #### 2. Run on an Emulator / Simulator  
@@ -127,14 +127,14 @@ You can run **JustBrightForUTM** in two ways:
   2. Create and launch an emulator (Pixel recommended).  
   3. Run:  
      ```bash
-     flutter run
+     flutter run --target=lib/demo.dart
      ```  
 
 - **iOS Simulator (macOS only)**  
   1. Open Xcode → *Open Developer Tool → Simulator*.  
   2. Run:  
      ```bash
-     flutter run
+     flutter run --target=lib/demo.dart
      ```  
 
 
