@@ -74,7 +74,7 @@ The app delivers its value through **three main features**:
 4. In emergencies, tap and hold the **SOS button** to activate alerts.  
 5. Explore the **Safety Ecosystem** for reports, hotspots, and resources.  
 
-## Setup Guide :memo:
+## Setup Guide  :memo:
 You can run **JustBrightForUTM** in two ways:  
 
 #### 1. Run on a Physical Device  
