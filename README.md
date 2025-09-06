@@ -47,7 +47,7 @@ The app delivers its value through **three main features**:
 
 - **Stage 2: Live Guardian Mode**  :speaker:
   - **One-Way Audio Stream** – Discreet live audio to campus security.  
-  - **Real-Time Feedback** – Dims screen + shows live security officer ETA & map.  
+  - **Real-Time Feedback** – Dims screen + displays reassuring text ("Help is on the way").  
   - **Ultimate Safeguard** – *Duress PIN* cancels visibly but secretly escalates alert.  
 
 
