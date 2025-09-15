@@ -6,7 +6,6 @@ import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'dart:async';
 import 'package:audioplayers/audioplayers.dart';
-import 'package:permission_handler/permission_handler.dart';
 import 'SmartSosButton.dart'; // Import the SOS button
 
 class NavigationPage extends StatefulWidget {
