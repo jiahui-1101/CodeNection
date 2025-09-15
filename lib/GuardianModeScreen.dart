@@ -1,22 +1,54 @@
 import 'package:flutter/material.dart';
 import 'package:audioplayers/audioplayers.dart';
+import 'package:google_maps_flutter/google_maps_flutter.dart';
 
-class GuardianModeScreen extends StatelessWidget {   // long press then click any of 3 icon from sos button atau exceed 5s no response will enter 守护模式页面
+// Make GuardianModeScreen a StatefulWidget
+class GuardianModeScreen extends StatefulWidget {
   final String initialMessage;
-  final AudioPlayer audioPlayer;   // ✅ 新增
+  final AudioPlayer audioPlayer;
 
   const GuardianModeScreen({
-    super.key, 
+    super.key,
     required this.initialMessage,
     required this.audioPlayer,
   });
-  
-  // “暗号”取消机制的对话框
-  void _showDeactivationDialog(BuildContext context) {
-    final pinController = TextEditingController();
-    const safePin = "0000";    // 真实的安全密码
-    const duressPin = "1234"; // 被胁迫时用的危险密码
 
+  @override
+  State<GuardianModeScreen> createState() => _GuardianModeScreenState();
+}
+
+class _GuardianModeScreenState extends State<GuardianModeScreen> {
+  GoogleMapController? _mapController;
+  // Temporary placeholder for guard's location. In real app, this would come from backend.
+  // Using UTM's approximate location as a placeholder.
+  final LatLng _initialGuardLocation = const LatLng(1.5583, 103.6375); // Example: UTM Skudai Campus
+  final Set<Marker> _markers = {}; // To store the guard's marker
+
+  final pinController = TextEditingController(); 
+  final String safePin = "0000";
+  final String duressPin = "1234";
+
+  @override
+  void initState() {
+    super.initState();
+    _markers.add(
+      Marker(
+        markerId: const MarkerId('guard_location'),
+        position: _initialGuardLocation,
+        icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueBlue), // Blue marker for guard
+        infoWindow: const InfoWindow(title: 'Guard Location (Mock)'),
+      ),
+    );
+  }
+
+  @override
+  void dispose() {
+    pinController.dispose();
+    super.dispose();
+  }
+
+  // secret code to deactivate alert not genuinely (Moved from StatelessWidget to StatefulWidget's State)
+  void _showDeactivationDialog(BuildContext context) {
     showDialog(
       context: context,
       builder: (dialogContext) => AlertDialog(
@@ -33,18 +65,18 @@ class GuardianModeScreen extends StatelessWidget {   // long press then click an
             child: const Text("Confirm"),
             onPressed: () {
               final enteredPin = pinController.text;
-              Navigator.of(dialogContext).pop(); // 关闭PIN输入框
-              
-              if (enteredPin == safePin) {
-                audioPlayer.stop();  // ✅ 停止 alarm
+              Navigator.of(dialogContext).pop(); 
 
-                Navigator.of(context).pop(); // 关闭守护模式页面
+              if (enteredPin == safePin) {
+                widget.audioPlayer.stop();  
+
+                Navigator.of(context).pop(); 
                 ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
                     backgroundColor: Colors.green,
                     content: Text("✅ Alert genuinely cancelled.")));
               } else if (enteredPin == duressPin) {
-                audioPlayer.stop();  // ✅ 停止 alarm
-                Navigator.of(context).pop(); // 关闭守护模式页面
+                widget.audioPlayer.stop();  
+                Navigator.of(context).pop(); 
                 ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
                     backgroundColor: Colors.orange,
                     content: Text("✅ Alert *appears* cancelled. Security has been notified of duress.")));
@@ -74,7 +106,7 @@ class GuardianModeScreen extends StatelessWidget {   // long press then click an
               Column(
                 children: [
                   Text(
-                    initialMessage,
+                    widget.initialMessage, 
                     textAlign: TextAlign.center,
                     style: const TextStyle(fontSize: 24, color: Colors.white, fontWeight: FontWeight.bold),
                   ),
@@ -85,20 +117,43 @@ class GuardianModeScreen extends StatelessWidget {   // long press then click an
                   ),
                 ],
               ),
-              Column(
-                children: [
-                 const Icon(Icons.shield_moon, color: Colors.white24, size: 150),
-                 const SizedBox(height: 30),
-
-                 _BlinkingIcon(),
-
-                 const SizedBox(height: 8),
-                 const Text(
-                   "Recording in progress",
-                   style: TextStyle(color: Colors.white, fontSize: 16, fontStyle: FontStyle.italic),
-                  ),
-                ],
+              
+              Expanded(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center, 
+                  children: [
+                   
+                    _BlinkingIcon(iconSize: 30), 
+                    const SizedBox(height: 8),
+                    const Text(
+                      "Recording in progress",
+                      style: TextStyle(color: Colors.white, fontSize: 16, fontStyle: FontStyle.italic),
+                    ),
+                    const SizedBox(height: 16), 
+                  
+                    Expanded(
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(16),
+                        child: GoogleMap(
+                          initialCameraPosition: CameraPosition(
+                            target: _initialGuardLocation, 
+                            zoom: 15, 
+                          ),
+                          onMapCreated: (GoogleMapController controller) {
+                            _mapController = controller;
+                          },
+                          markers: _markers, 
+                          myLocationEnabled: false, 
+                          zoomControlsEnabled: true,
+                          scrollGesturesEnabled: true,
+                          compassEnabled: true,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
               ),
+              const SizedBox(height: 20), 
               ElevatedButton(
                 onPressed: () => _showDeactivationDialog(context),
                 style: ElevatedButton.styleFrom(
@@ -116,7 +171,12 @@ class GuardianModeScreen extends StatelessWidget {   // long press then click an
   }
 }
 
+//  _BlinkingIcon to accept iconSize
 class _BlinkingIcon extends StatefulWidget {
+  final double iconSize; 
+
+  const _BlinkingIcon({super.key, this.iconSize = 40}); 
+
   @override
   State<_BlinkingIcon> createState() => _BlinkingIconState();
 }
@@ -130,7 +190,7 @@ class _BlinkingIconState extends State<_BlinkingIcon> with SingleTickerProviderS
     _controller = AnimationController(
       duration: const Duration(seconds: 1),
       vsync: this,
-    )..repeat(reverse: true); // 往返闪烁
+    )..repeat(reverse: true); // Repeat the animation indefinitely
   }
 
   @override
@@ -143,7 +203,7 @@ class _BlinkingIconState extends State<_BlinkingIcon> with SingleTickerProviderS
   Widget build(BuildContext context) {
     return FadeTransition(
       opacity: _controller,
-      child: const Icon(Icons.mic, color: Colors.white, size: 40),
+      child: Icon(Icons.mic, color: Colors.white, size: widget.iconSize), 
     );
   }
 }
