@@ -136,7 +136,7 @@ class StaticUtmBrightTitle extends StatelessWidget {
       ),
     );
   }
-}
+} 
 
 class AnimatedUtmBrightTitle extends StatefulWidget {
   const AnimatedUtmBrightTitle({super.key});
