@@ -1,127 +1,210 @@
 import 'package:flutter/material.dart';
 import 'package:audioplayers/audioplayers.dart';
+import 'package:hello_flutter/SafetyCompanionBottomSheetAI.dart';
 
-class SafetyCompanionBottomSheet extends StatefulWidget {
-  const SafetyCompanionBottomSheet({super.key});
+// ---------------------------------------------------------
+// MODE ENUM
+// ---------------------------------------------------------
+enum CompanionMode { selection, vc, ai }
+
+// ---------------------------------------------------------
+// WRAPPER (switches between selection / VC / AI)
+// ---------------------------------------------------------
+class SafetyCompanionBottomSheetWrapper extends StatefulWidget {
+  const SafetyCompanionBottomSheetWrapper({super.key});
 
   @override
-  State<SafetyCompanionBottomSheet> createState() => _SafetyCompanionBottomSheetState();
+  State<SafetyCompanionBottomSheetWrapper> createState() =>
+      _SafetyCompanionBottomSheetWrapperState();
 }
 
-class _SafetyCompanionBottomSheetState extends State<SafetyCompanionBottomSheet> {
+class _SafetyCompanionBottomSheetWrapperState
+    extends State<SafetyCompanionBottomSheetWrapper> {
+  CompanionMode _mode = CompanionMode.selection;
+
+  void _resetToSelection() {
+    setState(() {
+      _mode = CompanionMode.selection;
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    switch (_mode) {
+      case CompanionMode.selection:
+        return _buildSelectionUI();
+      case CompanionMode.vc:
+        return SafetyCompanionBottomSheetVC(onBack: _resetToSelection);
+      case CompanionMode.ai:
+        return SafetyCompanionBottomSheetAI(onBack: _resetToSelection);
+    }
+  }
+
+  Widget _buildSelectionUI() {
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.2),
+            blurRadius: 10,
+            offset: const Offset(0, -2),
+          ),
+        ],
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const Text(
+            "Choose Your Companion",
+            style: TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.bold,
+              color: Colors.black87,
+            ),
+          ),
+          const SizedBox(height: 20),
+          ElevatedButton.icon(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.blue,
+              minimumSize: const Size(double.infinity, 48),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+            ),
+            onPressed: () => setState(() => _mode = CompanionMode.vc),
+            icon: const Icon(Icons.record_voice_over, color: Colors.white),
+            label: const Text(
+              "Virtual Companion Voice",
+              style: TextStyle(color: Colors.white),
+            ),
+          ),
+          const SizedBox(height: 12),
+          ElevatedButton.icon(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.deepPurple,
+              minimumSize: const Size(double.infinity, 48),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+            ),
+            onPressed: () => setState(() => _mode = CompanionMode.ai),
+            icon: const Icon(Icons.smart_toy, color: Colors.white),
+            label: const Text(
+              "AI Live Chat",
+              style: TextStyle(color: Colors.white),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ---------------------------------------------------------
+// BASE CLASS
+// ---------------------------------------------------------
+abstract class SafetyCompanionBottomSheet extends StatelessWidget {
+  final List<String> encouragingMessages;
+  final Map<String, String> messageNames;
+  final VoidCallback? onBack;
+
+  const SafetyCompanionBottomSheet({
+    super.key,
+    required this.encouragingMessages,
+    required this.messageNames,
+    this.onBack,
+  });
+
+  String getMessageName(String path) {
+    return messageNames[path] ?? 'Encouragement';
+  }
+}
+
+// ---------------------------------------------------------
+// VIRTUAL COMPANION (with audio)
+// ---------------------------------------------------------
+class SafetyCompanionBottomSheetVC extends StatefulWidget {
+  final VoidCallback? onBack;
+  const SafetyCompanionBottomSheetVC({super.key, this.onBack});
+
+  @override
+  State<SafetyCompanionBottomSheetVC> createState() =>
+      _SafetyCompanionBottomSheetVCState();
+}
+
+class _SafetyCompanionBottomSheetVCState
+    extends State<SafetyCompanionBottomSheetVC> {
   final AudioPlayer _audioPlayer = AudioPlayer();
   bool _isPlaying = false;
   int _currentMessageIndex = 0;
-  double _volume = 1.0; // Volume level (0.0 to 1.0)
-  
-  final List<String> _encouragingMessages = [
+  double _volume = 1.0;
+
+  final List<String> encouragingMessages = const [
     'audio/mom_encouragement.mp3',
     'audio/dad_support.mp3',
     'audio/friend_cheer.mp3',
   ];
 
+  final Map<String, String> messageNames = const {
+    'audio/mom_encouragement.mp3': "Mom's Voice",
+    'audio/dad_support.mp3': "Dad's Voice",
+    'audio/friend_cheer.mp3': "Friend's Voice",
+  };
+
   @override
   void initState() {
     super.initState();
     _setupAudioPlayer();
-    _setMaxVolume(); // Set max volume when initialized
+    _setMaxVolume();
   }
 
   void _setupAudioPlayer() {
     _audioPlayer.onPlayerComplete.listen((event) {
       setState(() {
         _isPlaying = false;
-        _playNextMessage();
       });
     });
   }
 
   Future<void> _setMaxVolume() async {
-    try {
-      await _audioPlayer.setVolume(1.0); // Set to maximum volume (1.0)
-      setState(() {
-        _volume = 1.0;
-      });
-    } catch (e) {
-      print('Error setting volume: $e');
-    }
+    await _audioPlayer.setVolume(1.0);
+    setState(() {
+      _volume = 1.0;
+    });
   }
 
   Future<void> _increaseVolume() async {
     double newVolume = (_volume + 0.1).clamp(0.0, 1.0);
-    try {
-      await _audioPlayer.setVolume(newVolume);
-      setState(() {
-        _volume = newVolume;
-      });
-    } catch (e) {
-      print('Error increasing volume: $e');
-    }
+    await _audioPlayer.setVolume(newVolume);
+    setState(() {
+      _volume = newVolume;
+    });
   }
 
   Future<void> _decreaseVolume() async {
     double newVolume = (_volume - 0.1).clamp(0.0, 1.0);
-    try {
-      await _audioPlayer.setVolume(newVolume);
-      setState(() {
-        _volume = newVolume;
-      });
-    } catch (e) {
-      print('Error decreasing volume: $e');
-    }
-  }
-
-  Future<void> _playNextMessage() async {
-    await Future.delayed(const Duration(seconds: 30));
-    if (mounted) {
-      setState(() {
-        _currentMessageIndex = (_currentMessageIndex + 1) % _encouragingMessages.length;
-      });
-      await _playAudio(_encouragingMessages[_currentMessageIndex]);
-    }
+    await _audioPlayer.setVolume(newVolume);
+    setState(() {
+      _volume = newVolume;
+    });
   }
 
   Future<void> _playAudio(String audioPath) async {
-    try {
-      // Set volume before playing
-      await _audioPlayer.setVolume(_volume);
-      
-      setState(() {
-        _isPlaying = true;
-      });
-      
-      // Use AssetSource with the correct path
-      await _audioPlayer.play(AssetSource(audioPath));
-    } catch (e) {
-      print('Error playing audio: $e');
-      if (mounted) {
-        setState(() {
-          _isPlaying = false;
-        });
-        // Show error message to user
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text("Could not play audio")),
-        );
-      }
-    }
+    await _audioPlayer.setVolume(_volume);
+    setState(() {
+      _isPlaying = true;
+    });
+    await _audioPlayer.play(AssetSource(audioPath));
   }
 
   Future<void> _stopAudio() async {
     await _audioPlayer.stop();
-    if (mounted) {
-      setState(() {
-        _isPlaying = false;
-      });
-    }
-  }
-
-  String _getMessageName(String path) {
-    final Map<String, String> messageNames = {
-      'audio/mom_encouragement.mp3': "Mom's Voice",
-      'audio/dad_support.mp3': "Dad's Voice",
-      'audio/friend_cheer.mp3': "Friend's Voice",
-    };
-    return messageNames[path] ?? 'Encouragement';
+    setState(() {
+      _isPlaying = false;
+    });
   }
 
   String _getVolumeIcon() {
@@ -155,17 +238,27 @@ class _SafetyCompanionBottomSheetState extends State<SafetyCompanionBottomSheet>
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          const Text(
-            'Virtual Safety Companion',
-            style: TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.bold,
-              color: Colors.blue,
-            ),
+          Row(
+            children: [
+              if (widget.onBack != null)
+                IconButton(
+                  icon: const Icon(Icons.arrow_back, color: Colors.blue),
+                  onPressed: widget.onBack,
+                ),
+              const Expanded(
+                child: Text(
+                  'Virtual Companion Voice',
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.blue,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+              ),
+            ],
           ),
           const SizedBox(height: 12),
-          
-          // Volume Control Row
           Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
@@ -175,7 +268,8 @@ class _SafetyCompanionBottomSheetState extends State<SafetyCompanionBottomSheet>
               ),
               Text(
                 '${_getVolumeIcon()} ${(_volume * 100).toInt()}%',
-                style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
+                style: const TextStyle(
+                    fontSize: 14, fontWeight: FontWeight.bold),
               ),
               IconButton(
                 icon: const Icon(Icons.volume_up, color: Colors.blue),
@@ -184,8 +278,6 @@ class _SafetyCompanionBottomSheetState extends State<SafetyCompanionBottomSheet>
             ],
           ),
           const SizedBox(height: 12),
-          
-          // Playback Controls
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceAround,
             children: [
@@ -195,19 +287,23 @@ class _SafetyCompanionBottomSheetState extends State<SafetyCompanionBottomSheet>
                   size: 32,
                   color: Colors.blue,
                 ),
-                onPressed: _isPlaying ? _stopAudio : () => _playAudio(_encouragingMessages[_currentMessageIndex]),
+                onPressed: _isPlaying
+                    ? _stopAudio
+                    : () => _playAudio(encouragingMessages[_currentMessageIndex]),
               ),
               Text(
-                _getMessageName(_encouragingMessages[_currentMessageIndex]),
+                messageNames[encouragingMessages[_currentMessageIndex]] ??
+                    'Encouragement',
                 style: const TextStyle(fontSize: 14),
               ),
               IconButton(
                 icon: const Icon(Icons.skip_next, size: 32, color: Colors.blue),
                 onPressed: () {
                   setState(() {
-                    _currentMessageIndex = (_currentMessageIndex + 1) % _encouragingMessages.length;
+                    _currentMessageIndex =
+                        (_currentMessageIndex + 1) % encouragingMessages.length;
                   });
-                  _playAudio(_encouragingMessages[_currentMessageIndex]);
+                  _playAudio(encouragingMessages[_currentMessageIndex]);
                 },
               ),
             ],
@@ -223,3 +319,4 @@ class _SafetyCompanionBottomSheetState extends State<SafetyCompanionBottomSheet>
     );
   }
 }
+
