@@ -1,9 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:hello_flutter/DrawerNews.dart';
-import 'package:hello_flutter/EmergencyContactPage.dart';
+import 'package:hello_flutter/HotlinePage.dart';
 import 'package:hello_flutter/SettingPage.dart';
+import 'package:hello_flutter/EmergencyContactPage.dart';  
 import 'package:hello_flutter/LoginPage.dart';
-import 'package:hello_flutter/CallManagementPage.dart'; // Add this import
+import 'package:hello_flutter/CallManagementPage.dart';
 
 class AppDrawer extends StatelessWidget {
   const AppDrawer({super.key});
@@ -43,6 +44,8 @@ class AppDrawer extends StatelessWidget {
               ),
             ),
           ),
+
+          // 🔹 News
           ListTile(
             title: const Text('News and Updates'),
             trailing: const Icon(Icons.upcoming),
@@ -53,19 +56,20 @@ class AppDrawer extends StatelessWidget {
               );
             },
           ),
+
+          // 🔹 Emergency Contact
           ListTile(
             title: const Text('Emergency Contact'),
             trailing: const Icon(Icons.phone_in_talk),
             onTap: () {
               Navigator.of(context).pop();
               Navigator.of(context).push(
-                MaterialPageRoute(
-                  builder: (context) => const EmergencyContactPage(),
-                ),
+                MaterialPageRoute(builder: (context) => const EmergencyContactPage()),
               );
             },
           ),
-          // Add Call Management option here
+
+          // 🔹 Call Management
           ListTile(
             title: const Text('Call Management'),
             trailing: const Icon(Icons.call),
@@ -76,7 +80,22 @@ class AppDrawer extends StatelessWidget {
               );
             },
           ),
+
+          // 🔹 Hotline
+          ListTile(
+            title: const Text('Hotline'),
+            trailing: const Icon(Icons.support_agent),
+            onTap: () {
+              Navigator.of(context).pop();
+              Navigator.of(context).push(
+                MaterialPageRoute(builder: (context) => const HotlinePage()),
+              );
+            },
+          ),
+
           const Divider(),
+
+          // 🔹 Settings
           ListTile(
             title: const Text('Settings'),
             trailing: const Icon(Icons.settings),
@@ -89,6 +108,8 @@ class AppDrawer extends StatelessWidget {
           ),
 
           const Divider(),
+
+          // 🔹 Logout
           ListTile(
             leading: const Icon(Icons.logout),
             title: const Text('Logout'),
