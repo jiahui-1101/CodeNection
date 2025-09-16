@@ -47,6 +47,7 @@ flutter:
   assets:
     - assets/images/
     - assets/music/alarm.mp3
+    - assets/audio/
 
   fonts:
     - family: Grillin
