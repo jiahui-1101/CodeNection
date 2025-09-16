@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:hello_flutter/MainScreen.dart';
@@ -18,6 +17,7 @@ class _LoginPageState extends State<LoginPage> {
   final FirebaseAuth _auth = FirebaseAuth.instance;
   final TextEditingController _emailController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
+  final TextEditingController _resetEmailController = TextEditingController();
 
   bool _loading = false;
 
@@ -28,7 +28,7 @@ class _LoginPageState extends State<LoginPage> {
     'crayonshincan531@gmail.com',
   ];
 
-  // Email & Password login
+  // 🔹 Email & Password login
   Future<void> _loginWithEmail() async {
     setState(() => _loading = true);
     try {
@@ -37,9 +37,9 @@ class _LoginPageState extends State<LoginPage> {
         password: _passwordController.text.trim(),
       );
 
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text("✅ Login successful")));
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("✅ Login successful")),
+      );
 
       final email = userCredential.user?.email ?? '';
       if (callManagementUsers.contains(email)) {
@@ -54,15 +54,15 @@ class _LoginPageState extends State<LoginPage> {
         );
       }
     } on FirebaseAuthException catch (e) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text("❌ Login failed: ${e.message}")));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text("❌ Login failed: ${e.message}")),
+      );
     } finally {
       setState(() => _loading = false);
     }
   }
 
-  // Google login
+  // 🔹 Google login
   Future<void> _loginWithGoogle() async {
     setState(() => _loading = true);
     try {
@@ -77,13 +77,12 @@ class _LoginPageState extends State<LoginPage> {
         idToken: googleAuth.idToken,
       );
 
-      UserCredential userCredential = await _auth.signInWithCredential(
-        credential,
-      );
+      UserCredential userCredential =
+          await _auth.signInWithCredential(credential);
 
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text("✅ Logged in with Google")));
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("✅ Logged in with Google")),
+      );
 
       final email = userCredential.user?.email ?? '';
       if (callManagementUsers.contains(email)) {
@@ -106,7 +105,7 @@ class _LoginPageState extends State<LoginPage> {
     }
   }
 
-  // Password reset
+  // 🔹 Password reset
   Future<void> _resetPassword(String email) async {
     try {
       await _auth.sendPasswordResetEmail(email: email);
@@ -123,16 +122,14 @@ class _LoginPageState extends State<LoginPage> {
     }
   }
 
-  final TextEditingController _resetEmailController = TextEditingController();
-
+  // 🔹 Forgot Password Dialog
   void _showForgotPasswordDialog() {
     showDialog(
       context: context,
       builder: (BuildContext context) {
         return Dialog(
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(16),
-          ),
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
           child: Padding(
             padding: const EdgeInsets.all(24.0),
             child: Column(

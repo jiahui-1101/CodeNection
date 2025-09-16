@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 
 class NewsUpdatePage extends StatefulWidget {
   const NewsUpdatePage({super.key});
@@ -8,21 +10,6 @@ class NewsUpdatePage extends StatefulWidget {
 }
 
 class _NewsUpdatePageState extends State<NewsUpdatePage> {
-  final List<Map<String, dynamic>> newsItems = [
-    {
-      'title': 'New App Feature Released',
-      'date': 'May 15, 2023',
-      'content': 'We have just released a new feature that allows users to customize their experience. Check it out in the settings menu!',
-      'image': 'https://images.unsplash.com/photo-1516387938699-a93567ec168e?ixlib=rb-4.0.3&auto=format&fit=crop&w=500&q=80',
-    },
-    {
-      'title': 'Summer Update Coming Soon',
-      'date': 'April 28, 2023',
-      'content': 'Our team is working hard on the summer update which will include performance improvements and new content.',
-      'image': 'https://images.unsplash.com/photo-1460925895917-afdab827c52f?ixlib=rb-4.0.3&auto=format&fit=crop&w=500&q=80',
-    },
-  ];
-
   final _titleController = TextEditingController();
   final _dateController = TextEditingController();
   final _contentController = TextEditingController();
@@ -123,17 +110,18 @@ class _NewsUpdatePageState extends State<NewsUpdatePage> {
                     ),
                     const SizedBox(width: 8),
                     ElevatedButton(
-                      onPressed: () {
+                      onPressed: () async {
                         if (_titleController.text.isNotEmpty &&
                             _dateController.text.isNotEmpty &&
                             _contentController.text.isNotEmpty) {
-                          setState(() {
-                            newsItems.insert(0, {
-                              'title': _titleController.text,
-                              'date': _dateController.text,
-                              'content': _contentController.text,
-                              'image': _imageController.text,
-                            });
+                          await FirebaseFirestore.instance
+                              .collection('news')
+                              .add({
+                            'title': _titleController.text,
+                            'date': _dateController.text,
+                            'content': _contentController.text,
+                            'image': _imageController.text,
+                            'createdAt': FieldValue.serverTimestamp(),
                           });
 
                           _titleController.clear();
@@ -141,7 +129,7 @@ class _NewsUpdatePageState extends State<NewsUpdatePage> {
                           _contentController.clear();
                           _imageController.clear();
                           Navigator.pop(context);
-                          
+
                           ScaffoldMessenger.of(context).showSnackBar(
                             const SnackBar(
                               content: Text('News added successfully!'),
@@ -189,7 +177,7 @@ class _NewsUpdatePageState extends State<NewsUpdatePage> {
         backgroundColor: Colors.deepPurple,
         elevation: 2,
         centerTitle: true,
-        automaticallyImplyLeading: false, // This removes the back button
+        automaticallyImplyLeading: false,
       ),
       body: Container(
         decoration: BoxDecoration(
@@ -204,8 +192,19 @@ class _NewsUpdatePageState extends State<NewsUpdatePage> {
         ),
         child: Padding(
           padding: const EdgeInsets.all(16.0),
-          child: newsItems.isEmpty
-              ? Center(
+          child: StreamBuilder<QuerySnapshot>(
+            stream: FirebaseFirestore.instance
+                .collection('news')
+                .orderBy('createdAt', descending: true)
+                .limit(10) // ✅ Only fetch 10 news at a time
+                .snapshots(),
+            builder: (context, snapshot) {
+              if (snapshot.connectionState == ConnectionState.waiting) {
+                return const Center(child: CircularProgressIndicator());
+              }
+
+              if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+                return Center(
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
@@ -232,106 +231,123 @@ class _NewsUpdatePageState extends State<NewsUpdatePage> {
                       ),
                     ],
                   ),
-                )
-              : ListView.builder(
-                  itemCount: newsItems.length,
-                  itemBuilder: (context, index) {
-                    final news = newsItems[index];
-                    return Container(
-                      margin: const EdgeInsets.only(bottom: 16),
-                      child: Card(
-                        elevation: 3,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        child: InkWell(
-                          borderRadius: BorderRadius.circular(12),
-                          onTap: () {
-                            // Optional: Add detail view on tap
-                          },
-                          child: Padding(
-                            padding: const EdgeInsets.all(16.0),
-                            child: Row(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                if (news['image'] != null && news['image']!.isNotEmpty)
-                                  ClipRRect(
-                                    borderRadius: BorderRadius.circular(8),
-                                    child: Image.network(
-                                      news['image'],
-                                      width: 80,
-                                      height: 80,
-                                      fit: BoxFit.cover,
-                                      errorBuilder: (context, error, stackTrace) =>
-                                          Container(
-                                        width: 80,
-                                        height: 80,
-                                        color: Colors.grey.shade200,
-                                        child: Icon(
-                                          Icons.image_not_supported,
-                                          size: 30,
-                                          color: Colors.grey.shade400,
-                                        ),
-                                      ),
-                                    ),
-                                  )
-                                else
-                                  Container(
+                );
+              }
+
+              final newsDocs = snapshot.data!.docs;
+
+              return ListView.builder(
+                itemCount: newsDocs.length,
+                itemBuilder: (context, index) {
+                  final news = newsDocs[index].data() as Map<String, dynamic>;
+                  return Container(
+                    margin: const EdgeInsets.only(bottom: 16),
+                    child: Card(
+                      elevation: 3,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: InkWell(
+                        borderRadius: BorderRadius.circular(12),
+                        onTap: () {
+                          // Optional: Add detail view
+                        },
+                        child: Padding(
+                          padding: const EdgeInsets.all(16.0),
+                          child: Row(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              if (news['image'] != null &&
+                                  news['image'].toString().isNotEmpty)
+                                ClipRRect(
+                                  borderRadius: BorderRadius.circular(8),
+                                  child: CachedNetworkImage(
+                                    imageUrl: news['image'],
                                     width: 80,
                                     height: 80,
-                                    decoration: BoxDecoration(
-                                      color: Colors.deepPurple.shade50,
-                                      borderRadius: BorderRadius.circular(8),
+                                    fit: BoxFit.cover,
+                                    placeholder: (context, url) => Container(
+                                      width: 80,
+                                      height: 80,
+                                      color: Colors.grey.shade200,
+                                      child: const Center(
+                                        child: CircularProgressIndicator(
+                                          strokeWidth: 2,
+                                        ),
+                                      ),
                                     ),
-                                    child: Icon(
-                                      Icons.article,
-                                      size: 30,
-                                      color: Colors.deepPurple.shade200,
+                                    errorWidget: (context, url, error) =>
+                                        Container(
+                                      width: 80,
+                                      height: 80,
+                                      color: Colors.grey.shade200,
+                                      child: Icon(
+                                        Icons.image_not_supported,
+                                        size: 30,
+                                        color: Colors.grey.shade400,
+                                      ),
                                     ),
                                   ),
-                                const SizedBox(width: 16),
-                                Expanded(
-                                  child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
-                                    children: [
-                                      Text(
-                                        news['title'],
-                                        style: const TextStyle(
-                                          fontWeight: FontWeight.bold,
-                                          fontSize: 16,
-                                        ),
-                                        maxLines: 2,
-                                        overflow: TextOverflow.ellipsis,
-                                      ),
-                                      const SizedBox(height: 4),
-                                      Text(
-                                        news['date'],
-                                        style: TextStyle(
-                                          fontSize: 12,
-                                          color: Colors.grey[600],
-                                        ),
-                                      ),
-                                      const SizedBox(height: 8),
-                                      Text(
-                                        news['content'],
-                                        style: TextStyle(
-                                          fontSize: 14,
-                                          color: Colors.grey[800],
-                                        ),
-                                        maxLines: 2,
-                                        overflow: TextOverflow.ellipsis,
-                                      ),
-                                    ],
+                                )
+                              else
+                                Container(
+                                  width: 80,
+                                  height: 80,
+                                  decoration: BoxDecoration(
+                                    color: Colors.deepPurple.shade50,
+                                    borderRadius: BorderRadius.circular(8),
+                                  ),
+                                  child: Icon(
+                                    Icons.article,
+                                    size: 30,
+                                    color: Colors.deepPurple.shade200,
                                   ),
                                 ),
-                              ],
-                            ),
+                              const SizedBox(width: 16),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      news['title'] ?? '',
+                                      style: const TextStyle(
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 16,
+                                      ),
+                                      maxLines: 2,
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                    const SizedBox(height: 4),
+                                    Text(
+                                      news['date'] ?? '',
+                                      style: TextStyle(
+                                        fontSize: 12,
+                                        color: Colors.grey[600],
+                                      ),
+                                    ),
+                                    const SizedBox(height: 8),
+                                    Text(
+                                      news['content'] ?? '',
+                                      style: TextStyle(
+                                        fontSize: 14,
+                                        color: Colors.grey[800],
+                                      ),
+                                      maxLines: 2,
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
                           ),
                         ),
                       ),
-                    );
-                  },
-                ),
+                    ),
+                  );
+                },
+              );
+            },
+          ),
         ),
       ),
       floatingActionButton: FloatingActionButton(
