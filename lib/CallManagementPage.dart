@@ -1,27 +1,27 @@
 import 'package:flutter/material.dart';
+import 'package:hello_flutter/ManagementTopBar.dart';
 import 'package:hello_flutter/title.dart';
-import 'package:hello_flutter/TopNavBar.dart';
-import 'package:hello_flutter/SmartSosButton.dart';
-import 'package:hello_flutter/HomePage.dart';
-import 'package:hello_flutter/MapPage.dart';
-import 'package:hello_flutter/ReportPage.dart';
+import 'ManagementTopBar.dart';
 import 'package:hello_flutter/AppDrawer.dart';
+import 'EmergencyPage.dart';
+import 'NewsUpdatePage.dart';
+import 'ReportUpdatePage.dart';
 
-class MainScreen extends StatefulWidget {             // 2. App的主屏幕 (MainScreen Widget)
-  const MainScreen({super.key});
+class CallManagementPage extends StatefulWidget {             // 2. App的主屏幕 (MainScreen Widget)
+  const CallManagementPage({super.key});
 
   @override
-  State<MainScreen> createState() => _MainScreenState();
+  State<CallManagementPage> createState() => _CallManagementPageState();
 }
 
-class _MainScreenState extends State<MainScreen> {
+class _CallManagementPageState extends State<CallManagementPage> {
   int _selectedTopIndex = 0;
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
 
   static final List<Widget> _pages = <Widget>[
-    HomePage(),
-    MapPage(),
-    ReportPage(),
+    EmergencyPage(),
+    NewsUpdatePage(),
+    ReportUpdatePage(),
   ];
 
   void _onTopNavTapped(int index) {
@@ -59,7 +59,7 @@ class _MainScreenState extends State<MainScreen> {
         children: [
           Column(
             children: [
-              TopNavBar(
+              ManagementTopBar(
                 selectedIndex: _selectedTopIndex,
                 onItemTapped: _onTopNavTapped,
               ),
@@ -71,7 +71,6 @@ class _MainScreenState extends State<MainScreen> {
               ),
             ],
           ),
-          const SmartSosButton(),
         ],
       ),
     );

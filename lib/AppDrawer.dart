@@ -2,7 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:hello_flutter/DrawerNews.dart';
 import 'package:hello_flutter/HotlinePage.dart';
 import 'package:hello_flutter/SettingPage.dart';
-import 'package:hello_flutter/EmergencyContactPage.dart';  // ✅ 记得加这个
+import 'package:hello_flutter/EmergencyContactPage.dart';  
+import 'package:hello_flutter/LoginPage.dart';
+import 'package:hello_flutter/CallManagementPage.dart';
 
 class AppDrawer extends StatelessWidget {
   const AppDrawer({super.key});
@@ -55,18 +57,6 @@ class AppDrawer extends StatelessWidget {
             },
           ),
 
-          // 🔹 Hotline
-          ListTile(
-            title: const Text('Hotline'),
-            trailing: const Icon(Icons.support_agent),
-            onTap: () {
-              Navigator.of(context).pop();
-              Navigator.of(context).push(
-                MaterialPageRoute(builder: (context) => const HotlinePage()),
-              );
-            },
-          ),
-
           // 🔹 Emergency Contact
           ListTile(
             title: const Text('Emergency Contact'),
@@ -75,6 +65,30 @@ class AppDrawer extends StatelessWidget {
               Navigator.of(context).pop();
               Navigator.of(context).push(
                 MaterialPageRoute(builder: (context) => const EmergencyContactPage()),
+              );
+            },
+          ),
+
+          // 🔹 Call Management
+          ListTile(
+            title: const Text('Call Management'),
+            trailing: const Icon(Icons.call),
+            onTap: () {
+              Navigator.of(context).pop();
+              Navigator.of(context).push(
+                MaterialPageRoute(builder: (context) => const CallManagementPage()),
+              );
+            },
+          ),
+
+          // 🔹 Hotline
+          ListTile(
+            title: const Text('Hotline'),
+            trailing: const Icon(Icons.support_agent),
+            onTap: () {
+              Navigator.of(context).pop();
+              Navigator.of(context).push(
+                MaterialPageRoute(builder: (context) => const HotlinePage()),
               );
             },
           ),
@@ -100,7 +114,11 @@ class AppDrawer extends StatelessWidget {
             leading: const Icon(Icons.logout),
             title: const Text('Logout'),
             onTap: () {
-              // TODO: 实现登出逻辑
+              Navigator.of(context).pop();
+              Navigator.of(context).pushAndRemoveUntil(
+                MaterialPageRoute(builder: (context) => LoginPage()),
+                (Route<dynamic> route) => false,
+              );
             },
           ),
         ],

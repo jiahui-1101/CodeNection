@@ -7,6 +7,7 @@ import 'dart:convert';
 import 'dart:async';
 import 'package:audioplayers/audioplayers.dart';
 import 'SmartSosButton.dart'; // Import the SOS button
+import 'package:hello_flutter/SafetyCompanionBottomSheet.dart';
 
 class NavigationPage extends StatefulWidget {
   final String currentLocation;
@@ -290,9 +291,9 @@ class _NavigationPageState extends State<NavigationPage> {
   }
 
   void _recalibrateLocation() async {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text("Recalibrating location..."))
-    );
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(const SnackBar(content: Text("Recalibrating location...")));
     try {
       await _getCurrentLocationWithRetry();
     } catch (e) {
@@ -551,11 +552,7 @@ class _NavigationPageState extends State<NavigationPage> {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                const Icon(
-                  Icons.check_circle,
-                  color: Colors.green,
-                  size: 64,
-                ),
+                const Icon(Icons.check_circle, color: Colors.green, size: 64),
                 const SizedBox(height: 16),
                 const Text(
                   "Destination Reached!",
@@ -569,10 +566,7 @@ class _NavigationPageState extends State<NavigationPage> {
                 const SizedBox(height: 16),
                 Text(
                   "You have arrived at ${widget.destination}",
-                  style: const TextStyle(
-                    fontSize: 16,
-                    color: Colors.grey,
-                  ),
+                  style: const TextStyle(fontSize: 16, color: Colors.grey),
                   textAlign: TextAlign.center,
                 ),
                 const SizedBox(height: 24),
@@ -580,17 +574,17 @@ class _NavigationPageState extends State<NavigationPage> {
                   onPressed: _endNavigation,
                   style: ElevatedButton.styleFrom(
                     backgroundColor: Colors.blue,
-                    padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 32,
+                      vertical: 16,
+                    ),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(12),
                     ),
                   ),
                   child: const Text(
                     "Done",
-                    style: TextStyle(
-                      fontSize: 18,
-                      color: Colors.white,
-                    ),
+                    style: TextStyle(fontSize: 18, color: Colors.white),
                   ),
                 ),
               ],
@@ -610,15 +604,13 @@ class _NavigationPageState extends State<NavigationPage> {
         foregroundColor: Colors.white,
         elevation: 0,
         actions: [
-          if (_isNavigating) IconButton(
-            icon: const Icon(Icons.gps_fixed),
-            onPressed: _recalibrateLocation,
-            tooltip: "Recalibrate GPS",
-          ),
-          IconButton(
-            icon: const Icon(Icons.close),
-            onPressed: _endNavigation,
-          ),
+          if (_isNavigating)
+            IconButton(
+              icon: const Icon(Icons.gps_fixed),
+              onPressed: _recalibrateLocation,
+              tooltip: "Recalibrate GPS",
+            ),
+          IconButton(icon: const Icon(Icons.close), onPressed: _endNavigation),
         ],
       ),
       body: _isLoading
@@ -690,12 +682,14 @@ class _NavigationPageState extends State<NavigationPage> {
                   ),
 
                 // Safety Companion Bottom Sheet - Only show when walking alone and navigating
-                if (_showSafetyCompanion && !widget.isWalkingTogether && _isNavigating)
+                if (_showSafetyCompanion &&
+                    !widget.isWalkingTogether &&
+                    _isNavigating)
                   Positioned(
-                    bottom: widget.isWalkingTogether ? 170 : 86,
-                    left: 16,
-                    right: 16,
-                    child: const SafetyCompanionBottomSheet(),
+                    bottom: widget.isWalkingTogether ? 170.0 : 86.0,
+                    left: 16.0,
+                    right: 16.0,
+                    child: const SafetyCompanionBottomSheetWrapper(),
                   ),
 
                 // Safety Companion Toggle Button - Only show when walking alone and navigating
@@ -705,11 +699,15 @@ class _NavigationPageState extends State<NavigationPage> {
                     left: 16,
                     child: FloatingActionButton(
                       mini: true,
-                      backgroundColor: _showSafetyCompanion ? Colors.blue : Colors.white,
+                      backgroundColor: _showSafetyCompanion
+                          ? Colors.blue
+                          : Colors.white,
                       onPressed: _toggleSafetyCompanion,
                       child: Icon(
                         Icons.record_voice_over,
-                        color: _showSafetyCompanion ? Colors.white : Colors.blue,
+                        color: _showSafetyCompanion
+                            ? Colors.white
+                            : Colors.blue,
                       ),
                     ),
                   ),
@@ -767,234 +765,9 @@ class _NavigationPageState extends State<NavigationPage> {
                 ),
 
                 // Arrival Overlay (show when destination is reached)
-                if (!_isNavigating)
-                  _buildArrivalOverlay(),
+                if (!_isNavigating) _buildArrivalOverlay(),
               ],
             ),
-    );
-  }
-}
-
-// Safety Companion Bottom Sheet Widget
-class SafetyCompanionBottomSheet extends StatefulWidget {
-  const SafetyCompanionBottomSheet({super.key});
-
-  @override
-  State<SafetyCompanionBottomSheet> createState() => _SafetyCompanionBottomSheetState();
-}
-
-class _SafetyCompanionBottomSheetState extends State<SafetyCompanionBottomSheet> {
-  final AudioPlayer _audioPlayer = AudioPlayer();
-  bool _isPlaying = false;
-  int _currentMessageIndex = 0;
-  double _volume = 1.0; // Volume level (0.0 to 1.0)
-  
-  final List<String> _encouragingMessages = [
-    'audio/mom_encouragement.mp3',
-    'audio/dad_support.mp3',
-    'audio/friend_cheer.mp3',
-  ];
-
-  @override
-  void initState() {
-    super.initState();
-    _setupAudioPlayer();
-    _setMaxVolume(); // Set max volume when initialized
-  }
-
-  void _setupAudioPlayer() {
-    _audioPlayer.onPlayerComplete.listen((event) {
-      setState(() {
-        _isPlaying = false;
-        _playNextMessage();
-      });
-    });
-  }
-
-  Future<void> _setMaxVolume() async {
-    try {
-      await _audioPlayer.setVolume(1.0); // Set to maximum volume (1.0)
-      setState(() {
-        _volume = 1.0;
-      });
-    } catch (e) {
-      print('Error setting volume: $e');
-    }
-  }
-
-  Future<void> _increaseVolume() async {
-    double newVolume = (_volume + 0.1).clamp(0.0, 1.0);
-    try {
-      await _audioPlayer.setVolume(newVolume);
-      setState(() {
-        _volume = newVolume;
-      });
-    } catch (e) {
-      print('Error increasing volume: $e');
-    }
-  }
-
-  Future<void> _decreaseVolume() async {
-    double newVolume = (_volume - 0.1).clamp(0.0, 1.0);
-    try {
-      await _audioPlayer.setVolume(newVolume);
-      setState(() {
-        _volume = newVolume;
-      });
-    } catch (e) {
-      print('Error decreasing volume: $e');
-    }
-  }
-
-  Future<void> _playNextMessage() async {
-    await Future.delayed(const Duration(seconds: 30));
-    if (mounted) {
-      setState(() {
-        _currentMessageIndex = (_currentMessageIndex + 1) % _encouragingMessages.length;
-      });
-      await _playAudio(_encouragingMessages[_currentMessageIndex]);
-    }
-  }
-
-  Future<void> _playAudio(String audioPath) async {
-    try {
-      // Set volume before playing
-      await _audioPlayer.setVolume(_volume);
-      
-      setState(() {
-        _isPlaying = true;
-      });
-      
-      // Use AssetSource with the correct path
-      await _audioPlayer.play(AssetSource(audioPath));
-    } catch (e) {
-      print('Error playing audio: $e');
-      if (mounted) {
-        setState(() {
-          _isPlaying = false;
-        });
-        // Show error message to user
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text("Could not play audio")),
-        );
-      }
-    }
-  }
-
-  Future<void> _stopAudio() async {
-    await _audioPlayer.stop();
-    if (mounted) {
-      setState(() {
-        _isPlaying = false;
-      });
-    }
-  }
-
-  String _getMessageName(String path) {
-    final Map<String, String> messageNames = {
-      'audio/mom_encouragement.mp3': "Mom's Voice",
-      'audio/dad_support.mp3': "Dad's Voice",
-      'audio/friend_cheer.mp3': "Friend's Voice",
-    };
-    return messageNames[path] ?? 'Encouragement';
-  }
-
-  String _getVolumeIcon() {
-    if (_volume == 0.0) return '🔇';
-    if (_volume <= 0.3) return '🔈';
-    if (_volume <= 0.6) return '🔉';
-    return '🔊';
-  }
-
-  @override
-  void dispose() {
-    _audioPlayer.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(20),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.2),
-            blurRadius: 10,
-            offset: const Offset(0, -2),
-          ),
-        ],
-      ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          const Text(
-            'Virtual Safety Companion',
-            style: TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.bold,
-              color: Colors.blue,
-            ),
-          ),
-          const SizedBox(height: 12),
-          
-          // Volume Control Row
-          Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              IconButton(
-                icon: const Icon(Icons.volume_down, color: Colors.blue),
-                onPressed: _decreaseVolume,
-              ),
-              Text(
-                '${_getVolumeIcon()} ${(_volume * 100).toInt()}%',
-                style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
-              ),
-              IconButton(
-                icon: const Icon(Icons.volume_up, color: Colors.blue),
-                onPressed: _increaseVolume,
-              ),
-            ],
-          ),
-          const SizedBox(height: 12),
-          
-          // Playback Controls
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceAround,
-            children: [
-              IconButton(
-                icon: Icon(
-                  _isPlaying ? Icons.pause : Icons.play_arrow,
-                  size: 32,
-                  color: Colors.blue,
-                ),
-                onPressed: _isPlaying ? _stopAudio : () => _playAudio(_encouragingMessages[_currentMessageIndex]),
-              ),
-              Text(
-                _getMessageName(_encouragingMessages[_currentMessageIndex]),
-                style: const TextStyle(fontSize: 14),
-              ),
-              IconButton(
-                icon: const Icon(Icons.skip_next, size: 32, color: Colors.blue),
-                onPressed: () {
-                  setState(() {
-                    _currentMessageIndex = (_currentMessageIndex + 1) % _encouragingMessages.length;
-                  });
-                  _playAudio(_encouragingMessages[_currentMessageIndex]);
-                },
-              ),
-            ],
-          ),
-          const SizedBox(height: 8),
-          const Text(
-            'Hear encouraging messages during your walk',
-            style: TextStyle(fontSize: 12, color: Colors.grey),
-            textAlign: TextAlign.center,
-          ),
-        ],
-      ),
     );
   }
 }

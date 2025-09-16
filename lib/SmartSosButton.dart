@@ -4,8 +4,10 @@ import 'dart:math' as math;
 import 'package:audioplayers/audioplayers.dart';
 import 'package:hello_flutter/GuardianModeScreen.dart';
 
-class SmartSosButton extends StatefulWidget {              //  SOS按钮与扇形菜单 (SmartSosButton Widget) 
-  const SmartSosButton({super.key});
+class SmartSosButton extends StatefulWidget {
+  final Function? onEmergencyDetected;
+  
+  const SmartSosButton({super.key, this.onEmergencyDetected});
 
   @override
   State<SmartSosButton> createState() => _SmartSosButtonState();
@@ -14,11 +16,11 @@ class SmartSosButton extends StatefulWidget {              //  SOS按钮与扇�
 class _SmartSosButtonState extends State<SmartSosButton>
     with SingleTickerProviderStateMixin {
   bool _isMenuOpen = false;
-  late AnimationController _animationController; 
+  late AnimationController _animationController;
   Timer? _autoTimer;
   int _countdown = 5;
 
-  final AudioPlayer _audioPlayer = AudioPlayer(); // 音频播放器
+  final AudioPlayer _audioPlayer = AudioPlayer();
 
   @override
   void initState() {
@@ -31,47 +33,43 @@ class _SmartSosButtonState extends State<SmartSosButton>
 
   @override
   void dispose() {
-    _audioPlayer.dispose();       // 销毁播放器
+    _audioPlayer.dispose();
     _animationController.dispose();
     _autoTimer?.cancel();
     super.dispose();
   }
 
   void _stopAlarm() async {
-  await _audioPlayer.stop();
-  ScaffoldMessenger.of(context).showSnackBar(
-    const SnackBar(
-      content: Text("⏹️ Alarm Stopped"),
-      backgroundColor: Colors.green,
-    ),
-  );
-}
-
+    await _audioPlayer.stop();
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text("⏹️ Alarm Stopped"),
+        backgroundColor: Colors.green,
+      ),
+    );
+  }
 
   void _handleTap() async {
-  if (_isMenuOpen) {
-    _toggleMenu();
-  } else {
-    if (_audioPlayer.state == PlayerState.playing) {
-      // 如果正在播放，就停止
-      await _audioPlayer.stop();
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text("⏹️ Alarm Sound Stopped!"),
-          duration: Duration(milliseconds: 2),
-        ),
-      );
+    if (_isMenuOpen) {
+      _toggleMenu();
     } else {
-      // 否则就播放
-      await _audioPlayer.play(AssetSource("music/alarm.mp3"));
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text("🔊 Alarm Sound Activated!"),
-          duration: Duration(milliseconds: 2),
-        ),
-      );
-}
-
+      if (_audioPlayer.state == PlayerState.playing) {
+        await _audioPlayer.stop();
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text("⏹️ Alarm Sound Stopped!"),
+            duration: Duration(milliseconds: 2),
+          ),
+        );
+      } else {
+        await _audioPlayer.play(AssetSource("music/alarm.mp3"));
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text("🔊 Alarm Sound Activated!"),
+            duration: Duration(milliseconds: 2),
+          ),
+        );
+      }
     }
   }
 
@@ -114,28 +112,25 @@ class _SmartSosButtonState extends State<SmartSosButton>
     Navigator.of(context).push(MaterialPageRoute(
       builder: (_) => GuardianModeScreen(
         initialMessage: message,
-         audioPlayer: _audioPlayer,  //  pass param audioPlayer
-         ),
+        audioPlayer: _audioPlayer,
+      ),
     ));
     if (_isMenuOpen) {
       _toggleMenu();
     }
   }
 
-@override
+  @override
   Widget build(BuildContext context) {
     return Positioned(
-      bottom: 20, //sos button 按钮离屏幕底部的距离。号码越大，它就越往上。
-      right: 20,   //sos button 离屏幕右边的距离。号码越大，它就越往左。
-      // 这个 Container 只是用来define整个 widget 的边界和点击范围bulatan punya hu du
+      bottom: 20,
+      right: 20,
       child: SizedBox(
         width: 210,
         height: 210,
         child: Stack(
           alignment: Alignment.bottomRight,
           children: [
-            // 1. 【半圆背景层】
-            // 这个背景只在菜单打开时出现
             AnimatedOpacity(
               opacity: _isMenuOpen ? 1.0 : 0.0,
               duration: const Duration(milliseconds: 300),
@@ -143,7 +138,6 @@ class _SmartSosButtonState extends State<SmartSosButton>
                 ignoring: !_isMenuOpen,
                 child: Container(
                   decoration: BoxDecoration(
-                    //color: const Color.red.withOpacity(0.5), //半圆弧度punya colour
                     color: Colors.red.withOpacity(0.4),
                     borderRadius: const BorderRadius.only(
                       topLeft: Radius.circular(220),
@@ -153,12 +147,8 @@ class _SmartSosButtonState extends State<SmartSosButton>
               ),
             ),
             
-            // 2. 【小图标层】
-            // 这些小图标也只在shan xing menu open shi appear
             ..._buildFanMenuItems(),
             
-            // 3. 【主按钮层】sos button 
-            // always appear, even if the menu is closed
             Align(
               alignment: Alignment.bottomRight,
               child: GestureDetector(
@@ -166,7 +156,7 @@ class _SmartSosButtonState extends State<SmartSosButton>
                 onTap: _handleTap,
                 child: AnimatedContainer(
                   duration: const Duration(milliseconds: 200),
-                  width: 100,  //sos button de size
+                  width: 100,
                   height: 100,
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
@@ -208,6 +198,7 @@ class _SmartSosButtonState extends State<SmartSosButton>
       ),
     );
   }
+
   List<Widget> _buildFanMenuItems() {
     final List<Map<String, dynamic>> items = [
       {'angle': 0.0, 'color': Colors.blue, 'icon': Icons.local_hospital, 'message': "🚑 Medical Alert Sent"},
@@ -223,11 +214,9 @@ class _SmartSosButtonState extends State<SmartSosButton>
       final double angle = item['angle'];
       final double rad = angle * (math.pi / 180.0);
 
-      // 计算图标打开时的位置 (相对于 Stack 的右下角)
       final double openRight = mainButtonRadius - iconRadius + (distance * math.cos(rad));
       final double openBottom = mainButtonRadius - iconRadius + (distance * math.sin(rad));
       
-      // 图标关闭时的位置 (藏在主按钮中心)
       final double closedRight = mainButtonRadius - iconRadius;
       final double closedBottom = mainButtonRadius - iconRadius;
 
@@ -241,8 +230,6 @@ class _SmartSosButtonState extends State<SmartSosButton>
           opacity: _isMenuOpen ? 1.0 : 0.0,
           child: InkWell(
             onTap: () {
-              // 【调试工具2】保留这个 print，确认点击是否触发
-             // print("NEW_APPROACH_SUCCESS: Tapped ${item['message']}");
               _navigateToGuardian(item['message']!);
             },
             child: Container(
