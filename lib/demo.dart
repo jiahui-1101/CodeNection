@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:hello_flutter/MainScreen.dart';
+import 'firebase_options.dart';
+import 'package:firebase_core/firebase_core.dart';
+//import 'package:cloud_firestore/cloud_firestore.dart';
 //import 'package:audioplayers/audioplayers.dart';
 //import 'package:hello_flutter/LocationSelectionPage.dart';
 //import 'package:hello_flutter/ReportPage.dart';
@@ -13,7 +16,18 @@ import 'package:hello_flutter/MainScreen.dart';
 //做map和report的page只要改MapPage和ReportPage的class就可以了，
 //不用改MainScreen和其他class，MapPage he ReportPage在main.dart 里面也call好了（我们的main我叫demo.dart)
 
-void main() {
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  
+  try {
+    await Firebase.initializeApp(
+      options: DefaultFirebaseOptions.currentPlatform,
+  );
+  print('✅ Firebase 初始化成功！'); // 调试信息
+  } catch (e) {
+    print('❌ Firebase 初始化失败: $e'); // 调试信息
+  }
+
   runApp(const MyApp());
 }
 

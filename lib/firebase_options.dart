@@ -17,7 +17,10 @@ import 'package:flutter/foundation.dart'
 class DefaultFirebaseOptions {
   static FirebaseOptions get currentPlatform {
     if (kIsWeb) {
-      return web;
+      throw UnsupportedError(
+        'DefaultFirebaseOptions have not been configured for web - '
+        'you can reconfigure this by running the FlutterFire CLI again.',
+      );
     }
     switch (defaultTargetPlatform) {
       case TargetPlatform.android:
@@ -30,7 +33,10 @@ class DefaultFirebaseOptions {
           'you can reconfigure this by running the FlutterFire CLI again.',
         );
       case TargetPlatform.windows:
-        return windows;
+        throw UnsupportedError(
+          'DefaultFirebaseOptions have not been configured for windows - '
+          'you can reconfigure this by running the FlutterFire CLI again.',
+        );
       case TargetPlatform.linux:
         throw UnsupportedError(
           'DefaultFirebaseOptions have not been configured for linux - '
@@ -43,38 +49,22 @@ class DefaultFirebaseOptions {
     }
   }
 
-  static const FirebaseOptions web = FirebaseOptions(
-    apiKey: 'AIzaSyBRaQhQUz89nLbF6uPags0yiqyrEwcofPw',
-    appId: '1:74119039138:web:bca111fa6b888977e42ffb',
-    messagingSenderId: '74119039138',
-    projectId: 'utmbright',
-    authDomain: 'utmbright.firebaseapp.com',
-    storageBucket: 'utmbright.firebasestorage.app',
-  );
-
   static const FirebaseOptions android = FirebaseOptions(
-    apiKey: 'AIzaSyA-_nt443AWlwCb56RKZyK_HLVhDpP6hyw',
-    appId: '1:74119039138:android:9fcd0e8ebf542cf8e42ffb',
-    messagingSenderId: '74119039138',
-    projectId: 'utmbright',
-    storageBucket: 'utmbright.firebasestorage.app',
+    apiKey: 'AIzaSyDMAuyquC_htfp_w5Q1n-NA1Hg3ccBeXeU',
+    appId: '1:144599433533:android:f0e53b10591d16a9290554',
+    messagingSenderId: '144599433533',
+    projectId: 'utmbright-56819',
+    databaseURL: 'https://utmbright-56819-default-rtdb.asia-southeast1.firebasedatabase.app',
+    storageBucket: 'utmbright-56819.firebasestorage.app',
   );
 
   static const FirebaseOptions ios = FirebaseOptions(
-    apiKey: 'AIzaSyCz6v4IGOfMfhXQG11_OAsV17ofye8icF0',
-    appId: '1:74119039138:ios:a541991135b1391ee42ffb',
-    messagingSenderId: '74119039138',
-    projectId: 'utmbright',
-    storageBucket: 'utmbright.firebasestorage.app',
+    apiKey: 'AIzaSyAv4N37yQn6tb1AfN-ABL2Phh1BxLgkjw4',
+    appId: '1:144599433533:ios:3411e46191bf2217290554',
+    messagingSenderId: '144599433533',
+    projectId: 'utmbright-56819',
+    databaseURL: 'https://utmbright-56819-default-rtdb.asia-southeast1.firebasedatabase.app',
+    storageBucket: 'utmbright-56819.firebasestorage.app',
     iosBundleId: 'com.example.helloFlutter',
-  );
-
-  static const FirebaseOptions windows = FirebaseOptions(
-    apiKey: 'AIzaSyBRaQhQUz89nLbF6uPags0yiqyrEwcofPw',
-    appId: '1:74119039138:web:56808ddb7d069befe42ffb',
-    messagingSenderId: '74119039138',
-    projectId: 'utmbright',
-    authDomain: 'utmbright.firebaseapp.com',
-    storageBucket: 'utmbright.firebasestorage.app',
   );
 }
