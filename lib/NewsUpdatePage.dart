@@ -14,28 +14,90 @@ class _NewsUpdatePageState extends State<NewsUpdatePage> {
   final _dateController = TextEditingController();
   final _contentController = TextEditingController();
   final _imageController = TextEditingController();
+  final ScrollController _scrollController = ScrollController();
+  final int _newsLimit = 10;
+  bool _isLoadingMore = false;
+  DocumentSnapshot? _lastDocument;
+  String? _editingDocId;
 
-  void _showAddNewsDialog() {
+  @override
+  void initState() {
+    super.initState();
+    _scrollController.addListener(_scrollListener);
+  }
+
+  @override
+  void dispose() {
+    _scrollController.dispose();
+    _titleController.dispose();
+    _dateController.dispose();
+    _contentController.dispose();
+    _imageController.dispose();
+    super.dispose();
+  }
+
+  void _scrollListener() {
+    if (_scrollController.position.pixels ==
+        _scrollController.position.maxScrollExtent &&
+        !_isLoadingMore) {
+      _loadMoreNews();
+    }
+  }
+
+  Future<void> _loadMoreNews() async {
+    if (_isLoadingMore || _lastDocument == null) return;
+
+    setState(() {
+      _isLoadingMore = true;
+    });
+
+    try {
+      final snapshot = await FirebaseFirestore.instance
+          .collection('news')
+          .orderBy('pinned', descending: true)
+          .orderBy('createdAt', descending: true)
+          .startAfterDocument(_lastDocument!)
+          .limit(_newsLimit)
+          .get();
+
+      if (snapshot.docs.isNotEmpty) {
+        _lastDocument = snapshot.docs.last;
+        setState(() {});
+      }
+    } catch (e) {
+      debugPrint('Error loading more news: $e');
+    } finally {
+      setState(() {
+        _isLoadingMore = false;
+      });
+    }
+  }
+
+  void _showAddNewsDialog({Map<String, dynamic>? newsData, String? docId}) {
+    final isEditing = newsData != null;
+    if (isEditing) {
+      _titleController.text = newsData['title'] ?? '';
+      _dateController.text = newsData['date'] ?? '';
+      _contentController.text = newsData['content'] ?? '';
+      _imageController.text = newsData['image'] ?? '';
+      _editingDocId = docId;
+    } else {
+      _clearControllers();
+    }
+
     showDialog(
       context: context,
       builder: (context) => Dialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        elevation: 0,
-        backgroundColor: Colors.transparent,
         child: Container(
           padding: const EdgeInsets.all(20),
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(16),
-          ),
           child: SingleChildScrollView(
             child: Column(
               mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text(
-                  "Add News Update",
-                  style: TextStyle(
+                Text(
+                  isEditing ? "Edit News" : "Add News Update",
+                  style: const TextStyle(
                     fontSize: 20,
                     fontWeight: FontWeight.bold,
                     color: Colors.deepPurple,
@@ -57,7 +119,7 @@ class _NewsUpdatePageState extends State<NewsUpdatePage> {
                 TextField(
                   controller: _dateController,
                   decoration: InputDecoration(
-                    labelText: "Date (e.g. May 15, 2023)",
+                    labelText: "Date",
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(8),
                     ),
@@ -97,23 +159,37 @@ class _NewsUpdatePageState extends State<NewsUpdatePage> {
                   children: [
                     TextButton(
                       onPressed: () {
-                        _titleController.clear();
-                        _dateController.clear();
-                        _contentController.clear();
-                        _imageController.clear();
+                        _clearControllers();
                         Navigator.pop(context);
                       },
-                      style: TextButton.styleFrom(
-                        foregroundColor: Colors.grey[700],
-                      ),
                       child: const Text("Cancel"),
                     ),
-                    const SizedBox(width: 8),
                     ElevatedButton(
                       onPressed: () async {
-                        if (_titleController.text.isNotEmpty &&
-                            _dateController.text.isNotEmpty &&
-                            _contentController.text.isNotEmpty) {
+                        if (_titleController.text.isEmpty ||
+                            _dateController.text.isEmpty ||
+                            _contentController.text.isEmpty) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text('Please fill all required fields'),
+                              backgroundColor: Colors.red,
+                            ),
+                          );
+                          return;
+                        }
+
+                        if (isEditing) {
+                          await FirebaseFirestore.instance
+                              .collection('news')
+                              .doc(_editingDocId)
+                              .update({
+                            'title': _titleController.text,
+                            'date': _dateController.text,
+                            'content': _contentController.text,
+                            'image': _imageController.text,
+                            'updatedAt': FieldValue.serverTimestamp(),
+                          });
+                        } else {
                           await FirebaseFirestore.instance
                               .collection('news')
                               .add({
@@ -121,37 +197,23 @@ class _NewsUpdatePageState extends State<NewsUpdatePage> {
                             'date': _dateController.text,
                             'content': _contentController.text,
                             'image': _imageController.text,
+                            'pinned': false,
                             'createdAt': FieldValue.serverTimestamp(),
                           });
-
-                          _titleController.clear();
-                          _dateController.clear();
-                          _contentController.clear();
-                          _imageController.clear();
-                          Navigator.pop(context);
-
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
-                              content: Text('News added successfully!'),
-                              backgroundColor: Colors.green,
-                            ),
-                          );
-                        } else {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
-                              content: Text('Please fill all required fields'),
-                              backgroundColor: Colors.red,
-                            ),
-                          );
                         }
+
+                        _clearControllers();
+                        Navigator.pop(context);
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text(isEditing
+                                ? 'News updated successfully!'
+                                : 'News added successfully!'),
+                            backgroundColor: Colors.green,
+                          ),
+                        );
                       },
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.deepPurple,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                      ),
-                      child: const Text("Add News"),
+                      child: Text(isEditing ? "Update News" : "Add News"),
                     ),
                   ],
                 ),
@@ -163,202 +225,310 @@ class _NewsUpdatePageState extends State<NewsUpdatePage> {
     );
   }
 
+  void _clearControllers() {
+    _titleController.clear();
+    _dateController.clear();
+    _contentController.clear();
+    _imageController.clear();
+    _editingDocId = null;
+  }
+
+  Future<void> _deleteNews(String docId) async {
+    try {
+      await FirebaseFirestore.instance.collection('news').doc(docId).delete();
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('News deleted successfully'),
+          backgroundColor: Colors.green,
+        ),
+      );
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Failed to delete news'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
+  }
+
+  Future<void> _togglePinStatus(String docId, bool currentlyPinned) async {
+    try {
+      await FirebaseFirestore.instance.collection('news').doc(docId).update({
+        'pinned': !currentlyPinned,
+        'updatedAt': FieldValue.serverTimestamp(),
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(!currentlyPinned
+              ? 'News pinned successfully'
+              : 'News unpinned successfully'),
+          backgroundColor: Colors.green,
+        ),
+      );
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Failed to update pin status'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
+  }
+
+  void _showNewsDetail(Map<String, dynamic> news) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => NewsDetailPage(news: news),
+      ),
+    );
+  }
+
+  Widget _buildNewsItem(Map<String, dynamic> news, String id) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 16),
+      child: Card(
+        elevation: 3,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: InkWell(
+          borderRadius: BorderRadius.circular(12),
+          onTap: () => _showNewsDetail(news),
+          child: Padding(
+            padding: const EdgeInsets.all(16.0),
+            child: Row(
+              children: [
+                if ((news['image'] ?? '').isNotEmpty)
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(8),
+                    child: CachedNetworkImage(
+                      imageUrl: news['image'],
+                      width: 80,
+                      height: 80,
+                      fit: BoxFit.cover,
+                    ),
+                  )
+                else
+                  Container(
+                    width: 80,
+                    height: 80,
+                    decoration: BoxDecoration(
+                      color: Colors.deepPurple.shade50,
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: const Icon(Icons.article, size: 30),
+                  ),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        news['title'] ?? '',
+                        style: const TextStyle(
+                            fontWeight: FontWeight.bold, fontSize: 16),
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        news['date'] ?? '',
+                        style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        news['content'] ?? '',
+                        style:
+                            TextStyle(fontSize: 14, color: Colors.grey[800]),
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ],
+                  ),
+                ),
+                Column(
+                  children: [
+                    IconButton(
+                      icon: Icon(
+                        news['pinned'] ?? false
+                            ? Icons.star
+                            : Icons.star_border,
+                        color: Colors.orange,
+                      ),
+                      onPressed: () => _togglePinStatus(id, news['pinned'] ?? false),
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.edit, color: Colors.blue),
+                      onPressed: () => _showAddNewsDialog(newsData: news, docId: id),
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.delete, color: Colors.red),
+                      onPressed: () => _deleteNews(id),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildShimmerLoader() {
+    return ListView.builder(
+      itemCount: 5,
+      itemBuilder: (context, index) {
+        return Container(
+          margin: const EdgeInsets.only(bottom: 16),
+          child: Card(
+            elevation: 3,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: const Padding(
+              padding: EdgeInsets.all(16.0),
+              child: Row(
+                children: [
+                  SizedBox(width: 80, height: 80, child: ColoredBox(color: Colors.grey)),
+                  SizedBox(width: 16),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        ColoredBox(color: Colors.grey, child: SizedBox(height: 16, width: double.infinity)),
+                        SizedBox(height: 8),
+                        ColoredBox(color: Colors.grey, child: SizedBox(height: 12, width: 100)),
+                        SizedBox(height: 12),
+                        ColoredBox(color: Colors.grey, child: SizedBox(height: 14, width: double.infinity)),
+                      ],
+                    ),
+                  )
+                ],
+              ),
+            ),
+          ),
+        );
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text(
-          "News Updates",
-          style: TextStyle(
-            fontWeight: FontWeight.bold,
-            color: Colors.white,
-          ),
-        ),
+        title: const Text("News Updates"),
         backgroundColor: Colors.deepPurple,
-        elevation: 2,
-        centerTitle: true,
-        automaticallyImplyLeading: false,
       ),
       body: Container(
         decoration: BoxDecoration(
           gradient: LinearGradient(
+            colors: [Colors.deepPurple.shade50, Colors.grey.shade100],
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
-            colors: [
-              Colors.deepPurple.shade50,
-              Colors.grey.shade100,
-            ],
           ),
         ),
         child: Padding(
           padding: const EdgeInsets.all(16.0),
-          child: StreamBuilder<QuerySnapshot>(
-            stream: FirebaseFirestore.instance
-                .collection('news')
-                .orderBy('createdAt', descending: true)
-                .limit(10) // ✅ Only fetch 10 news at a time
-                .snapshots(),
-            builder: (context, snapshot) {
-              if (snapshot.connectionState == ConnectionState.waiting) {
-                return const Center(child: CircularProgressIndicator());
-              }
+          child: Column(
+            children: [
+              Expanded(
+                child: StreamBuilder<QuerySnapshot>(
+                  stream: FirebaseFirestore.instance
+                      .collection('news')
+                      .orderBy('pinned', descending: true)
+                      .orderBy('createdAt', descending: true)
+                      .limit(_newsLimit)
+                      .snapshots(),
+                  builder: (context, snapshot) {
+                    if (snapshot.connectionState == ConnectionState.waiting) {
+                      return _buildShimmerLoader();
+                    }
 
-              if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
-                return Center(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Icon(
-                        Icons.article,
-                        size: 64,
-                        color: Colors.grey.shade400,
-                      ),
-                      const SizedBox(height: 16),
-                      const Text(
-                        "No news yet",
-                        style: TextStyle(
-                          fontSize: 20,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.grey,
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-                      const Text(
-                        "Add your first news update to get started",
-                        style: TextStyle(
-                          color: Colors.grey,
-                        ),
-                      ),
-                    ],
-                  ),
-                );
-              }
+                    final newsDocs = snapshot.data?.docs ?? [];
+                    if (newsDocs.isEmpty) {
+                      return const Center(child: Text('No news yet'));
+                    }
 
-              final newsDocs = snapshot.data!.docs;
+                    _lastDocument = newsDocs.last;
 
-              return ListView.builder(
-                itemCount: newsDocs.length,
-                itemBuilder: (context, index) {
-                  final news = newsDocs[index].data() as Map<String, dynamic>;
-                  return Container(
-                    margin: const EdgeInsets.only(bottom: 16),
-                    child: Card(
-                      elevation: 3,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: InkWell(
-                        borderRadius: BorderRadius.circular(12),
-                        onTap: () {
-                          // Optional: Add detail view
-                        },
-                        child: Padding(
-                          padding: const EdgeInsets.all(16.0),
-                          child: Row(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              if (news['image'] != null &&
-                                  news['image'].toString().isNotEmpty)
-                                ClipRRect(
-                                  borderRadius: BorderRadius.circular(8),
-                                  child: CachedNetworkImage(
-                                    imageUrl: news['image'],
-                                    width: 80,
-                                    height: 80,
-                                    fit: BoxFit.cover,
-                                    placeholder: (context, url) => Container(
-                                      width: 80,
-                                      height: 80,
-                                      color: Colors.grey.shade200,
-                                      child: const Center(
-                                        child: CircularProgressIndicator(
-                                          strokeWidth: 2,
-                                        ),
-                                      ),
-                                    ),
-                                    errorWidget: (context, url, error) =>
-                                        Container(
-                                      width: 80,
-                                      height: 80,
-                                      color: Colors.grey.shade200,
-                                      child: Icon(
-                                        Icons.image_not_supported,
-                                        size: 30,
-                                        color: Colors.grey.shade400,
-                                      ),
-                                    ),
-                                  ),
-                                )
-                              else
-                                Container(
-                                  width: 80,
-                                  height: 80,
-                                  decoration: BoxDecoration(
-                                    color: Colors.deepPurple.shade50,
-                                    borderRadius: BorderRadius.circular(8),
-                                  ),
-                                  child: Icon(
-                                    Icons.article,
-                                    size: 30,
-                                    color: Colors.deepPurple.shade200,
-                                  ),
-                                ),
-                              const SizedBox(width: 16),
-                              Expanded(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text(
-                                      news['title'] ?? '',
-                                      style: const TextStyle(
-                                        fontWeight: FontWeight.bold,
-                                        fontSize: 16,
-                                      ),
-                                      maxLines: 2,
-                                      overflow: TextOverflow.ellipsis,
-                                    ),
-                                    const SizedBox(height: 4),
-                                    Text(
-                                      news['date'] ?? '',
-                                      style: TextStyle(
-                                        fontSize: 12,
-                                        color: Colors.grey[600],
-                                      ),
-                                    ),
-                                    const SizedBox(height: 8),
-                                    Text(
-                                      news['content'] ?? '',
-                                      style: TextStyle(
-                                        fontSize: 14,
-                                        color: Colors.grey[800],
-                                      ),
-                                      maxLines: 2,
-                                      overflow: TextOverflow.ellipsis,
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
-                    ),
-                  );
-                },
-              );
-            },
+                    return ListView.builder(
+                      controller: _scrollController,
+                      itemCount: newsDocs.length + (_isLoadingMore ? 1 : 0),
+                      itemBuilder: (context, index) {
+                        if (index == newsDocs.length) {
+                          return const Padding(
+                            padding: EdgeInsets.symmetric(vertical: 16),
+                            child: Center(child: CircularProgressIndicator()),
+                          );
+                        }
+                        final news = newsDocs[index].data() as Map<String, dynamic>;
+                        return _buildNewsItem(news, newsDocs[index].id);
+                      },
+                    );
+                  },
+                ),
+              ),
+            ],
           ),
         ),
       ),
       floatingActionButton: FloatingActionButton(
-        onPressed: _showAddNewsDialog,
+        onPressed: () => _showAddNewsDialog(),
         backgroundColor: Colors.deepPurple,
-        foregroundColor: Colors.white,
-        elevation: 4,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(16),
-        ),
         child: const Icon(Icons.add),
+      ),
+    );
+  }
+}
+
+class NewsDetailPage extends StatelessWidget {
+  final Map<String, dynamic> news;
+
+  const NewsDetailPage({super.key, required this.news});
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text("News Detail"),
+        backgroundColor: Colors.deepPurple,
+      ),
+      body: SingleChildScrollView(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            if ((news['image'] ?? '').isNotEmpty)
+              ClipRRect(
+                borderRadius: BorderRadius.circular(12),
+                child: CachedNetworkImage(
+                  imageUrl: news['image'],
+                  width: double.infinity,
+                  height: 200,
+                  fit: BoxFit.cover,
+                ),
+              )
+            else
+              Container(
+                width: double.infinity,
+                height: 200,
+                decoration: BoxDecoration(
+                  color: Colors.deepPurple.shade50,
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: const Icon(Icons.article, size: 50),
+              ),
+            const SizedBox(height: 16),
+            Text(news['date'] ?? '', style: TextStyle(color: Colors.grey[600])),
+            const SizedBox(height: 8),
+            Text(news['title'] ?? '', style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
+            const SizedBox(height: 16),
+            Text(news['content'] ?? '', style: const TextStyle(fontSize: 16, height: 1.5)),
+          ],
+        ),
       ),
     );
   }
