@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:hello_flutter/MainScreen.dart';
-
+import 'package:hello_flutter/CallManagementPage.dart';
 import 'RegisterPage.dart';
 import 'title.dart';
 
@@ -20,28 +21,42 @@ class _LoginPageState extends State<LoginPage> {
 
   bool _loading = false;
 
+  // List of special emails that should go to CallManagementPage
+  final List<String> callManagementUsers = [
+    'utmbright@gmail.com',
+    'nextlevel@gmail.com',
+    'crayonshincan531@gmail.com',
+  ];
+
   // Email & Password login
   Future<void> _loginWithEmail() async {
     setState(() => _loading = true);
     try {
-      await _auth.signInWithEmailAndPassword(
+      UserCredential userCredential = await _auth.signInWithEmailAndPassword(
         email: _emailController.text.trim(),
         password: _passwordController.text.trim(),
       );
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("✅ Login successful")),
-      );
-
-      // Navigate to MainScreen
-      Navigator.pushReplacement(
+      ScaffoldMessenger.of(
         context,
-        MaterialPageRoute(builder: (_) => const MainScreen()),
-      );
+      ).showSnackBar(const SnackBar(content: Text("✅ Login successful")));
+
+      final email = userCredential.user?.email ?? '';
+      if (callManagementUsers.contains(email)) {
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (_) => const CallManagementPage()),
+        );
+      } else {
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (_) => const MainScreen()),
+        );
+      }
     } on FirebaseAuthException catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("❌ Login failed: ${e.message}")),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text("❌ Login failed: ${e.message}")));
     } finally {
       setState(() => _loading = false);
     }
@@ -52,7 +67,7 @@ class _LoginPageState extends State<LoginPage> {
     setState(() => _loading = true);
     try {
       final GoogleSignInAccount? googleUser = await GoogleSignIn().signIn();
-      if (googleUser == null) return; // canceled
+      if (googleUser == null) return; // cancelled
 
       final GoogleSignInAuthentication googleAuth =
           await googleUser.authentication;
@@ -62,17 +77,26 @@ class _LoginPageState extends State<LoginPage> {
         idToken: googleAuth.idToken,
       );
 
-      await _auth.signInWithCredential(credential);
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("✅ Logged in with Google")),
+      UserCredential userCredential = await _auth.signInWithCredential(
+        credential,
       );
 
-      // Navigate to MainScreen
-      Navigator.pushReplacement(
+      ScaffoldMessenger.of(
         context,
-        MaterialPageRoute(builder: (_) => const MainScreen()),
-      );
+      ).showSnackBar(const SnackBar(content: Text("✅ Logged in with Google")));
+
+      final email = userCredential.user?.email ?? '';
+      if (callManagementUsers.contains(email)) {
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (_) => const CallManagementPage()),
+        );
+      } else {
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (_) => const MainScreen()),
+        );
+      }
     } on FirebaseAuthException catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text("❌ Google login failed: ${e.message}")),
@@ -82,6 +106,7 @@ class _LoginPageState extends State<LoginPage> {
     }
   }
 
+  // Password reset
   Future<void> _resetPassword(String email) async {
     try {
       await _auth.sendPasswordResetEmail(email: email);
@@ -98,8 +123,9 @@ class _LoginPageState extends State<LoginPage> {
     }
   }
 
+  final TextEditingController _resetEmailController = TextEditingController();
+
   void _showForgotPasswordDialog() {
-    String email = '';
     showDialog(
       context: context,
       builder: (BuildContext context) {
@@ -118,7 +144,7 @@ class _LoginPageState extends State<LoginPage> {
                 ),
                 const SizedBox(height: 16),
                 TextField(
-                  onChanged: (value) => email = value,
+                  controller: _resetEmailController,
                   decoration: InputDecoration(
                     labelText: 'Email',
                     border: OutlineInputBorder(
@@ -141,7 +167,7 @@ class _LoginPageState extends State<LoginPage> {
                       child: ElevatedButton(
                         onPressed: () {
                           Navigator.of(context).pop();
-                          _resetPassword(email);
+                          _resetPassword(_resetEmailController.text.trim());
                         },
                         style: ElevatedButton.styleFrom(
                           backgroundColor: const Color(0xFF0f3460),
@@ -183,7 +209,10 @@ class _LoginPageState extends State<LoginPage> {
               const Text(
                 'Sign in to continue',
                 style: TextStyle(
-                    color: Colors.white70, fontSize: 16, fontFamily: 'Gerdu'),
+                  color: Colors.white70,
+                  fontSize: 16,
+                  fontFamily: 'Gerdu',
+                ),
               ),
               const SizedBox(height: 40),
               Expanded(
@@ -246,13 +275,15 @@ class _LoginPageState extends State<LoginPage> {
                           ),
                           child: _loading
                               ? const CircularProgressIndicator(
-                                  color: Colors.white)
+                                  color: Colors.white,
+                                )
                               : const Text(
                                   'LOGIN',
                                   style: TextStyle(
-                                      fontSize: 18,
-                                      fontWeight: FontWeight.bold,
-                                      color: Colors.white),
+                                    fontSize: 18,
+                                    fontWeight: FontWeight.bold,
+                                    color: Colors.white,
+                                  ),
                                 ),
                         ),
                       ),
@@ -262,8 +293,10 @@ class _LoginPageState extends State<LoginPage> {
                           Expanded(child: Divider(color: Colors.grey)),
                           Padding(
                             padding: EdgeInsets.symmetric(horizontal: 8.0),
-                            child: Text('Or login with',
-                                style: TextStyle(color: Colors.grey)),
+                            child: Text(
+                              'Or login with',
+                              style: TextStyle(color: Colors.grey),
+                            ),
                           ),
                           Expanded(child: Divider(color: Colors.grey)),
                         ],
@@ -274,8 +307,11 @@ class _LoginPageState extends State<LoginPage> {
                         height: 56,
                         child: OutlinedButton.icon(
                           onPressed: _loading ? null : _loginWithGoogle,
-                          icon: const Icon(Icons.g_mobiledata,
-                              color: Colors.red, size: 24),
+                          icon: const Icon(
+                            Icons.g_mobiledata,
+                            color: Colors.red,
+                            size: 24,
+                          ),
                           label: const Text('Sign in with Google'),
                         ),
                       ),
@@ -287,20 +323,21 @@ class _LoginPageState extends State<LoginPage> {
               Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  const Text("Don't have an account?",
-                      style: TextStyle(color: Colors.white70)),
+                  const Text(
+                    "Don't have an account?",
+                    style: TextStyle(color: Colors.white70),
+                  ),
                   TextButton(
                     onPressed: () {
                       Navigator.push(
                         context,
-                        MaterialPageRoute(
-                            builder: (_) => const RegisterPage()),
+                        MaterialPageRoute(builder: (_) => const RegisterPage()),
                       );
                     },
-                    child: const Text('Sign Up',
-                        style: TextStyle(
-                          color: Colors.white,
-                        )),
+                    child: const Text(
+                      'Sign Up',
+                      style: TextStyle(color: Colors.white),
+                    ),
                   ),
                 ],
               ),

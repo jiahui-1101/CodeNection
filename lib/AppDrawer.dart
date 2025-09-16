@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:hello_flutter/DrawerNews.dart';
 import 'package:hello_flutter/HotlinePage.dart';
 import 'package:hello_flutter/SettingPage.dart';
-import 'package:hello_flutter/EmergencyContactPage.dart';  
+import 'package:hello_flutter/EmergencyContactPage.dart';
 import 'package:hello_flutter/LoginPage.dart';
 import 'package:hello_flutter/CallManagementPage.dart';
 
@@ -11,37 +12,38 @@ class AppDrawer extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final User? user = FirebaseAuth.instance.currentUser;
+
     return Drawer(
       backgroundColor: const Color(0xFFF0FAFF),
       child: ListView(
         padding: EdgeInsets.zero,
         children: [
           UserAccountsDrawerHeader(
-            accountName: const Text(
-              'next level utm',
-              style: TextStyle(
+            accountName: Text(
+              user?.displayName ?? 'Guest User',
+              style: const TextStyle(
                 fontWeight: FontWeight.bold,
                 color: Colors.white,
                 shadows: [Shadow(color: Colors.black, blurRadius: 2)],
               ),
             ),
-            accountEmail: const Text(
-              'next_level_utm@gmail.com',
-              style: TextStyle(
+            accountEmail: Text(
+              user?.email ?? 'guest@example.com',
+              style: const TextStyle(
                 color: Colors.white,
                 shadows: [Shadow(color: Colors.black, blurRadius: 2)],
               ),
             ),
-            currentAccountPicture: const CircleAvatar(
-              backgroundImage: AssetImage('assets/images/bg.jpg'),
+            currentAccountPicture: CircleAvatar(
+              backgroundImage: user?.photoURL != null
+                  ? NetworkImage(user!.photoURL!)
+                  : const AssetImage('assets/images/profile_placeholder.png')
+                      as ImageProvider,
               radius: 30,
             ),
             decoration: const BoxDecoration(
-              image: DecorationImage(
-                fit: BoxFit.cover,
-                image: AssetImage('assets/images/wallpaper.jpg'),
-                colorFilter: ColorFilter.mode(Colors.black38, BlendMode.darken),
-              ),
+              color: Color(0xFF0f3460), // solid color background
             ),
           ),
 
@@ -64,19 +66,8 @@ class AppDrawer extends StatelessWidget {
             onTap: () {
               Navigator.of(context).pop();
               Navigator.of(context).push(
-                MaterialPageRoute(builder: (context) => const EmergencyContactPage()),
-              );
-            },
-          ),
-
-          // 🔹 Call Management
-          ListTile(
-            title: const Text('Call Management'),
-            trailing: const Icon(Icons.call),
-            onTap: () {
-              Navigator.of(context).pop();
-              Navigator.of(context).push(
-                MaterialPageRoute(builder: (context) => const CallManagementPage()),
+                MaterialPageRoute(
+                    builder: (context) => const EmergencyContactPage()),
               );
             },
           ),
@@ -113,10 +104,10 @@ class AppDrawer extends StatelessWidget {
           ListTile(
             leading: const Icon(Icons.logout),
             title: const Text('Logout'),
-            onTap: () {
-              Navigator.of(context).pop();
+            onTap: () async {
+              await FirebaseAuth.instance.signOut();
               Navigator.of(context).pushAndRemoveUntil(
-                MaterialPageRoute(builder: (context) => LoginPage()),
+                MaterialPageRoute(builder: (context) => const LoginPage()),
                 (Route<dynamic> route) => false,
               );
             },
@@ -125,4 +116,4 @@ class AppDrawer extends StatelessWidget {
       ),
     );
   }
-} 
+}
