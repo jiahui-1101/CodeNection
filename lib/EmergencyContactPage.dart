@@ -1,99 +1,114 @@
 import 'package:flutter/material.dart';
+import 'package:url_launcher/url_launcher.dart';
 
-class EmergencyContactPage extends StatelessWidget {
+class EmergencyContactPage extends StatefulWidget {
   const EmergencyContactPage({super.key});
+
+  @override
+  State<EmergencyContactPage> createState() => _EmergencyContactPageState();
+}
+
+class _EmergencyContactPageState extends State<EmergencyContactPage> {
+  List<Map<String, String>> contacts = [
+    {"name": "Mom", "phone": "012-3456789"},
+    {"name": "Dad", "phone": "013-9876543"},
+  ];
+
+  // 拨打电话功能
+  Future<void> _makePhoneCall(String phoneNumber) async {
+    final Uri url = Uri(scheme: 'tel', path: phoneNumber);
+    if (await canLaunchUrl(url)) {
+      await launchUrl(url);
+    } else {
+      throw 'Could not launch $phoneNumber';
+    }
+  }
+
+  void _addContact() {
+    setState(() {
+      contacts.add({"name": "New Contact", "phone": "000-0000000"});
+    });
+  }
+
+  void _editContact(int index) {
+    showDialog(
+      context: context,
+      builder: (context) {
+        TextEditingController nameCtrl =
+            TextEditingController(text: contacts[index]["name"]);
+        TextEditingController phoneCtrl =
+            TextEditingController(text: contacts[index]["phone"]);
+
+        return AlertDialog(
+          title: const Text("Edit Contact"),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextField(
+                  controller: nameCtrl,
+                  decoration: const InputDecoration(labelText: "Name")),
+              TextField(
+                  controller: phoneCtrl,
+                  decoration: const InputDecoration(labelText: "Phone")),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () {
+                setState(() {
+                  contacts.removeAt(index);
+                });
+                Navigator.pop(context);
+              },
+              child: const Text("Delete", style: TextStyle(color: Colors.red)),
+            ),
+            TextButton(
+              onPressed: () {
+                setState(() {
+                  contacts[index] = {
+                    "name": nameCtrl.text,
+                    "phone": phoneCtrl.text
+                  };
+                });
+                Navigator.pop(context);
+              },
+              child: const Text("Save"),
+            ),
+          ],
+        );
+      },
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text(
-          "Emergency Contacts",
-          style: TextStyle(fontWeight: FontWeight.bold),
-        ),
-        backgroundColor: const Color(0xFF8EB9D4),
+      appBar: AppBar(title: const Text("Emergency Contacts")),
+      body: ListView.builder(
+        itemCount: contacts.length,
+        itemBuilder: (context, index) {
+          final contact = contacts[index];
+          return Card(
+            margin: const EdgeInsets.symmetric(vertical: 6, horizontal: 12),
+            child: ListTile(
+              leading: const CircleAvatar(
+                backgroundColor: Colors.blueAccent,
+                child: Icon(Icons.person, color: Colors.white),
+              ),
+              title: Text(contact["name"]!),
+              subtitle: Text(contact["phone"]!),
+              onTap: () => _makePhoneCall(contact["phone"]!), // 点击即可拨打
+              trailing: IconButton(
+                icon: const Icon(Icons.edit, color: Colors.blue),
+                onPressed: () => _editContact(index),
+              ),
+            ),
+          );
+        },
       ),
-      body: ListView(
-        padding: const EdgeInsets.all(16),
-        children: const [
-          ContactCard(
-            title: "Bahagian Keselamatan UTM",
-            phone: "07-55 30014",
-          ),
-          ContactCard(
-            title: "Pusat Kesihatan UTM",
-            phone: "07-55 30999",
-          ),
-          ContactCard(
-            title: "Unit Persekitaran, Keselamatan & Kesihatan Pekerjaan (OSHE)",
-            phone: "07-55 31886",
-          ),
-          ContactCard(
-            title: "Balai Polis Taman Universiti",
-            phone: "07-520 3129",
-          ),
-          ContactCard(
-            title: "Balai Polis Skudai",
-            phone: "07-556 1222",
-          ),
-          ContactCard(
-            title: "Balai Polis Senai",
-            phone: "07-599 1222",
-          ),
-          ContactCard(
-            title: "Balai Bomba Pulai, Taman Universiti",
-            phone: "07-520 4144",
-          ),
-          ContactCard(
-            title: "Balai Bomba Kulai",
-            phone: "07-663 4444",
-          ),
-          ContactCard(
-            title: "Pusat Kesihatan Taman Universiti",
-            phone: "07-521 6800",
-          ),
-          ContactCard(
-            title: "Hospital Kulai",
-            phone: "07-662 3333",
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class ContactCard extends StatelessWidget {
-  final String title;
-  final String phone;
-  final String? description; 
-
-  const ContactCard({
-    super.key,
-    required this.title,
-    required this.phone,
-    this.description, 
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Card(
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      margin: const EdgeInsets.symmetric(vertical: 8),
-      elevation: 3,
-      child: ListTile(
-        leading: const Icon(Icons.phone, color: Colors.blue),
-        title: Text(
-          title,
-          style: const TextStyle(fontWeight: FontWeight.bold),
-        ),
-        subtitle: description != null ? Text(description!) : null, // 
-        trailing: Text(
-          phone,
-          style: const TextStyle(
-            color: Colors.red,
-            fontWeight: FontWeight.bold,
-          ),
-        ),
+      floatingActionButton: FloatingActionButton(
+        onPressed: _addContact,
+        child: const Icon(Icons.add),
       ),
     );
   }
