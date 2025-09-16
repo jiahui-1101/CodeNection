@@ -4,12 +4,12 @@
 </p>
 
 ## Table of Contents
-- [Track & Problem Statement](#-track--problem-statement)
-- [Introduction](#-introduction)
-- [Core Features](#-core-features)
-- [Technical Stack](#-technical-stack)
-- [Usage](#-usage)
-- [Setup Guide](#-setup-guide)
+- [Track & Problem Statement](#track--problem-statement--mag_right)
+- [Introduction](#introduction--mega)
+- [Core Features](#core-features--star2)
+- [Technical Stack](#-technical-stack--computer)
+- [Usage](#usage--fire)
+- [Setup Guide](#setup-guide--memo)
 - [Documentation](#-documentation)
 - [Contributors](#-contributors)
 
@@ -47,7 +47,7 @@ The app delivers its value through **three main features**:
 
 - **Stage 2: Live Guardian Mode**  :speaker:
   - **One-Way Audio Stream** – Discreet live audio to campus security.  
-  - **Real-Time Feedback** – Dims screen + shows live security officer ETA & map.  
+  - **Real-Time Feedback** – Dims screen + displays reassuring text ("Help is on the way").  
   - **Ultimate Safeguard** – *Duress PIN* cancels visibly but secretly escalates alert.  
 
 
@@ -74,7 +74,7 @@ The app delivers its value through **three main features**:
 4. In emergencies, tap and hold the **SOS button** to activate alerts.  
 5. Explore the **Safety Ecosystem** for reports, hotspots, and resources.  
 
-## Setup Guide :memo:
+## Setup Guide  :memo:
 You can run **JustBrightForUTM** in two ways:  
 
 #### 1. Run on a Physical Device  
@@ -113,7 +113,7 @@ You can run **JustBrightForUTM** in two ways:
 
 
 ## 📖 Documentation  
-- **Demo / Walkthrough:** [Add YouTube / Loom link if available]  
+- **Demo / Walkthrough:** https://youtu.be/3rg5cUewwSQ
 - **Technical Stack:** Flutter + C++ + MySQL 
 
 

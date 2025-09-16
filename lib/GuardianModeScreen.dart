@@ -1,63 +1,51 @@
 import 'package:flutter/material.dart';
 import 'package:audioplayers/audioplayers.dart';
+import 'package:google_maps_flutter/google_maps_flutter.dart';
+import 'package:hello_flutter/BlinkingIcon.dart';
+import 'package:hello_flutter/AlertDeactivation.dart'; 
+import 'package:hello_flutter/GuardianModeSafetyManual.dart'; 
 
-class GuardianModeScreen extends StatelessWidget {   // long press then click any of 3 icon from sos button atau exceed 5s no response will enter 守护模式页面
+
+class GuardianModeScreen extends StatefulWidget {
   final String initialMessage;
-  final AudioPlayer audioPlayer;   // ✅ 新增
+  final AudioPlayer audioPlayer;
 
   const GuardianModeScreen({
-    super.key, 
+    super.key,
     required this.initialMessage,
     required this.audioPlayer,
   });
-  
-  // “暗号”取消机制的对话框
-  void _showDeactivationDialog(BuildContext context) {
-    final pinController = TextEditingController();
-    const safePin = "0000";    // 真实的安全密码
-    const duressPin = "1234"; // 被胁迫时用的危险密码
 
-    showDialog(
-      context: context,
-      builder: (dialogContext) => AlertDialog(
-        title: const Text("Enter Deactivation PIN"),
-        content: TextField(
-          controller: pinController,
-          keyboardType: TextInputType.number,
-          obscureText: true,
-          decoration: const InputDecoration(hintText: "4-digit PIN"),
-        ),
-        actions: [
-          TextButton(onPressed: () => Navigator.of(dialogContext).pop(), child: const Text("Cancel")),
-          TextButton(
-            child: const Text("Confirm"),
-            onPressed: () {
-              final enteredPin = pinController.text;
-              Navigator.of(dialogContext).pop(); // 关闭PIN输入框
-              
-              if (enteredPin == safePin) {
-                audioPlayer.stop();  // ✅ 停止 alarm
+  @override
+  State<GuardianModeScreen> createState() => _GuardianModeScreenState();
+}
 
-                Navigator.of(context).pop(); // 关闭守护模式页面
-                ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-                    backgroundColor: Colors.green,
-                    content: Text("✅ Alert genuinely cancelled.")));
-              } else if (enteredPin == duressPin) {
-                audioPlayer.stop();  // ✅ 停止 alarm
-                Navigator.of(context).pop(); // 关闭守护模式页面
-                ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-                    backgroundColor: Colors.orange,
-                    content: Text("✅ Alert *appears* cancelled. Security has been notified of duress.")));
-              } else {
-                ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-                    backgroundColor: Colors.red,
-                    content: Text("❌ Incorrect PIN.")));
-              }
-            },
-          ),
-        ],
+class _GuardianModeScreenState extends State<GuardianModeScreen> {
+  GoogleMapController? _mapController;
+  final LatLng _initialGuardLocation = const LatLng(1.5583, 103.6375); // Example: UTM Skudai Campus
+  final Set<Marker> _markers = {};
+
+  final pinController = TextEditingController();
+  final String safePin = "0000";
+  final String duressPin = "1234";
+
+  @override
+  void initState() {
+    super.initState();
+    _markers.add(
+      Marker(
+        markerId: const MarkerId('guard_location'),
+        position: _initialGuardLocation,
+        icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueBlue), // Blue marker for guard
+        infoWindow: const InfoWindow(title: 'Guard Location (Mock)'),
       ),
     );
+  }
+
+  @override
+  void dispose() {
+    pinController.dispose();
+    super.dispose();
   }
 
   @override
@@ -74,7 +62,7 @@ class GuardianModeScreen extends StatelessWidget {   // long press then click an
               Column(
                 children: [
                   Text(
-                    initialMessage,
+                    widget.initialMessage,
                     textAlign: TextAlign.center,
                     style: const TextStyle(fontSize: 24, color: Colors.white, fontWeight: FontWeight.bold),
                   ),
@@ -85,22 +73,50 @@ class GuardianModeScreen extends StatelessWidget {   // long press then click an
                   ),
                 ],
               ),
-              Column(
-                children: [
-                 const Icon(Icons.shield_moon, color: Colors.white24, size: 150),
-                 const SizedBox(height: 30),
 
-                 _BlinkingIcon(),
+              Expanded(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    const BlinkingIcon(iconSize: 30), // ✅ Changed to use the imported widget
+                    const SizedBox(height: 8),
+                    const Text(
+                      "Recording in progress",
+                      style: TextStyle(color: Colors.white, fontSize: 16, fontStyle: FontStyle.italic),
+                    ),
+                    const SizedBox(height: 16),
 
-                 const SizedBox(height: 8),
-                 const Text(
-                   "Recording in progress",
-                   style: TextStyle(color: Colors.white, fontSize: 16, fontStyle: FontStyle.italic),
-                  ),
-                ],
+                    Expanded(
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(16),
+                        child: GoogleMap(
+                          initialCameraPosition: CameraPosition(
+                            target: _initialGuardLocation,
+                            zoom: 15,
+                          ),
+                          onMapCreated: (GoogleMapController controller) {
+                            _mapController = controller;
+                          },
+                          markers: _markers,
+                          myLocationEnabled: false,
+                          zoomControlsEnabled: true,
+                          scrollGesturesEnabled: true,
+                          compassEnabled: true,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
               ),
+              const SizedBox(height: 20),
               ElevatedButton(
-                onPressed: () => _showDeactivationDialog(context),
+                onPressed: () => showDeactivationDialog( // ✅ Changed to use the imported function
+                  context,
+                  pinController,
+                  safePin,
+                  duressPin,
+                  widget.audioPlayer,
+                ),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: Colors.white,
                   foregroundColor: Colors.red.shade900,
@@ -112,38 +128,14 @@ class GuardianModeScreen extends StatelessWidget {   // long press then click an
           ),
         ),
       ),
-    );
-  }
-}
 
-class _BlinkingIcon extends StatefulWidget {
-  @override
-  State<_BlinkingIcon> createState() => _BlinkingIconState();
-}
-
-class _BlinkingIconState extends State<_BlinkingIcon> with SingleTickerProviderStateMixin {
-  late AnimationController _controller;
-
-  @override
-  void initState() {
-    super.initState();
-    _controller = AnimationController(
-      duration: const Duration(seconds: 1),
-      vsync: this,
-    )..repeat(reverse: true); // 往返闪烁
-  }
-
-  @override
-  void dispose() {
-    _controller.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return FadeTransition(
-      opacity: _controller,
-      child: const Icon(Icons.mic, color: Colors.white, size: 40),
+      floatingActionButton: FloatingActionButton(
+        onPressed: () => showSafetyManualDialog(context, widget.initialMessage), // ✅ Changed to use the imported function
+        backgroundColor: Colors.white,
+        foregroundColor: Colors.red.shade900,
+        child: const Icon(Icons.menu_book),
+      ),
+      floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
     );
   }
 }
