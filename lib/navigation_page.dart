@@ -7,7 +7,7 @@ import 'dart:convert';
 import 'dart:async';
 import 'package:audioplayers/audioplayers.dart';
 import 'SmartSosButton.dart'; // Import the SOS button
-import 'SafetyCompanionBottomSheet.dart';
+import 'package:hello_flutter/SafetyCompanionBottomSheet.dart';
 
 class NavigationPage extends StatefulWidget {
   final String currentLocation;
@@ -291,9 +291,9 @@ class _NavigationPageState extends State<NavigationPage> {
   }
 
   void _recalibrateLocation() async {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text("Recalibrating location..."))
-    );
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(const SnackBar(content: Text("Recalibrating location...")));
     try {
       await _getCurrentLocationWithRetry();
     } catch (e) {
@@ -552,11 +552,7 @@ class _NavigationPageState extends State<NavigationPage> {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                const Icon(
-                  Icons.check_circle,
-                  color: Colors.green,
-                  size: 64,
-                ),
+                const Icon(Icons.check_circle, color: Colors.green, size: 64),
                 const SizedBox(height: 16),
                 const Text(
                   "Destination Reached!",
@@ -570,10 +566,7 @@ class _NavigationPageState extends State<NavigationPage> {
                 const SizedBox(height: 16),
                 Text(
                   "You have arrived at ${widget.destination}",
-                  style: const TextStyle(
-                    fontSize: 16,
-                    color: Colors.grey,
-                  ),
+                  style: const TextStyle(fontSize: 16, color: Colors.grey),
                   textAlign: TextAlign.center,
                 ),
                 const SizedBox(height: 24),
@@ -581,17 +574,17 @@ class _NavigationPageState extends State<NavigationPage> {
                   onPressed: _endNavigation,
                   style: ElevatedButton.styleFrom(
                     backgroundColor: Colors.blue,
-                    padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 32,
+                      vertical: 16,
+                    ),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(12),
                     ),
                   ),
                   child: const Text(
                     "Done",
-                    style: TextStyle(
-                      fontSize: 18,
-                      color: Colors.white,
-                    ),
+                    style: TextStyle(fontSize: 18, color: Colors.white),
                   ),
                 ),
               ],
@@ -611,15 +604,13 @@ class _NavigationPageState extends State<NavigationPage> {
         foregroundColor: Colors.white,
         elevation: 0,
         actions: [
-          if (_isNavigating) IconButton(
-            icon: const Icon(Icons.gps_fixed),
-            onPressed: _recalibrateLocation,
-            tooltip: "Recalibrate GPS",
-          ),
-          IconButton(
-            icon: const Icon(Icons.close),
-            onPressed: _endNavigation,
-          ),
+          if (_isNavigating)
+            IconButton(
+              icon: const Icon(Icons.gps_fixed),
+              onPressed: _recalibrateLocation,
+              tooltip: "Recalibrate GPS",
+            ),
+          IconButton(icon: const Icon(Icons.close), onPressed: _endNavigation),
         ],
       ),
       body: _isLoading
@@ -691,12 +682,14 @@ class _NavigationPageState extends State<NavigationPage> {
                   ),
 
                 // Safety Companion Bottom Sheet - Only show when walking alone and navigating
-                if (_showSafetyCompanion && !widget.isWalkingTogether && _isNavigating)
+                if (_showSafetyCompanion &&
+                    !widget.isWalkingTogether &&
+                    _isNavigating)
                   Positioned(
-                    bottom: widget.isWalkingTogether ? 170 : 86,
-                    left: 16,
-                    right: 16,
-                    child: const SafetyCompanionBottomSheet(),
+                    bottom: widget.isWalkingTogether ? 170.0 : 86.0,
+                    left: 16.0,
+                    right: 16.0,
+                    child: const SafetyCompanionBottomSheetWrapper(),
                   ),
 
                 // Safety Companion Toggle Button - Only show when walking alone and navigating
@@ -706,11 +699,15 @@ class _NavigationPageState extends State<NavigationPage> {
                     left: 16,
                     child: FloatingActionButton(
                       mini: true,
-                      backgroundColor: _showSafetyCompanion ? Colors.blue : Colors.white,
+                      backgroundColor: _showSafetyCompanion
+                          ? Colors.blue
+                          : Colors.white,
                       onPressed: _toggleSafetyCompanion,
                       child: Icon(
                         Icons.record_voice_over,
-                        color: _showSafetyCompanion ? Colors.white : Colors.blue,
+                        color: _showSafetyCompanion
+                            ? Colors.white
+                            : Colors.blue,
                       ),
                     ),
                   ),
@@ -768,8 +765,7 @@ class _NavigationPageState extends State<NavigationPage> {
                 ),
 
                 // Arrival Overlay (show when destination is reached)
-                if (!_isNavigating)
-                  _buildArrivalOverlay(),
+                if (!_isNavigating) _buildArrivalOverlay(),
               ],
             ),
     );

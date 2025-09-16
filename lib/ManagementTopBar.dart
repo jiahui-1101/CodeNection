@@ -25,8 +25,8 @@ class ManagementTopBar extends StatelessWidget {
         mainAxisAlignment: MainAxisAlignment.spaceAround,
         children: [
           _buildNavItem(context, Icons.emergency_outlined, 'Emergency', 0),
-          _buildNavItem(context, Icons.assignment_outlined, 'Report', 1),
-          _buildNavItem(context, Icons.article_outlined, 'News', 2),
+          _buildNavItem(context, Icons.article_outlined, 'News', 1),
+          _buildNavItem(context, Icons.assignment_outlined, 'Report', 2),
         ],
       ),
     );
