@@ -1,6 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:hello_flutter/MainScreen.dart';
 import 'package:image_picker/image_picker.dart';
 import 'dart:io';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:google_sign_in/google_sign_in.dart';
+
 import 'LoginPage.dart';
 import 'title.dart';
 
@@ -15,6 +19,13 @@ class _RegisterPageState extends State<RegisterPage> {
   File? _profileImage;
   final ImagePicker _picker = ImagePicker();
 
+  // Controllers for text input
+  final TextEditingController _nameController = TextEditingController();
+  final TextEditingController _emailController = TextEditingController();
+  final TextEditingController _passwordController = TextEditingController();
+  final TextEditingController _confirmPasswordController =
+      TextEditingController();
+
   Future<void> _pickImage(ImageSource source) async {
     try {
       final XFile? image = await _picker.pickImage(source: source);
@@ -24,9 +35,9 @@ class _RegisterPageState extends State<RegisterPage> {
         });
       }
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Failed to pick image: $e')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Failed to pick image: $e')));
     }
   }
 
@@ -65,6 +76,73 @@ class _RegisterPageState extends State<RegisterPage> {
         );
       },
     );
+  }
+
+  // Email/Password Registration
+  Future<void> _register() async {
+    if (_passwordController.text != _confirmPasswordController.text) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text("Passwords do not match")));
+      return;
+    }
+
+    try {
+      UserCredential userCredential = await FirebaseAuth.instance
+          .createUserWithEmailAndPassword(
+        email: _emailController.text.trim(),
+        password: _passwordController.text.trim(),
+      );
+
+      // Update display name
+      await userCredential.user!.updateDisplayName(_nameController.text.trim());
+
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text("Registration successful!")));
+
+      // Navigate to MainScreen after registration
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (_) => const MainScreen()),
+      );
+    } on FirebaseAuthException catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(e.message ?? "Registration failed")),
+      );
+    }
+  }
+
+  // Google Sign-Up
+  Future<void> _signUpWithGoogle() async {
+    try {
+      final GoogleSignInAccount? googleUser = await GoogleSignIn().signIn();
+      if (googleUser == null) return; // cancelled
+
+      final GoogleSignInAuthentication googleAuth =
+          await googleUser.authentication;
+
+      final credential = GoogleAuthProvider.credential(
+        accessToken: googleAuth.accessToken,
+        idToken: googleAuth.idToken,
+      );
+
+      await FirebaseAuth.instance.signInWithCredential(credential);
+
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text("Signed up with Google!")));
+
+      // Navigate directly to MainScreen
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (_) => const MainScreen()),
+      );
+    } catch (e) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text("Google Sign-Up failed: $e")));
+    }
   }
 
   @override
@@ -126,10 +204,7 @@ class _RegisterPageState extends State<RegisterPage> {
                         decoration: BoxDecoration(
                           color: const Color(0xFF0f3460),
                           shape: BoxShape.circle,
-                          border: Border.all(
-                            color: Colors.white,
-                            width: 2,
-                          ),
+                          border: Border.all(color: Colors.white, width: 2),
                         ),
                         child: const Icon(
                           Icons.camera_alt,
@@ -144,10 +219,7 @@ class _RegisterPageState extends State<RegisterPage> {
               const SizedBox(height: 10),
               const Text(
                 'Tap to add profile picture',
-                style: TextStyle(
-                  color: Colors.white70,
-                  fontSize: 14,
-                ),
+                style: TextStyle(color: Colors.white70, fontSize: 14),
               ),
               const SizedBox(height: 20),
               Expanded(
@@ -168,6 +240,7 @@ class _RegisterPageState extends State<RegisterPage> {
                     child: Column(
                       children: [
                         TextField(
+                          controller: _nameController,
                           decoration: InputDecoration(
                             labelText: 'Full Name',
                             labelStyle: const TextStyle(color: Colors.grey),
@@ -176,13 +249,19 @@ class _RegisterPageState extends State<RegisterPage> {
                             ),
                             focusedBorder: OutlineInputBorder(
                               borderRadius: BorderRadius.circular(12),
-                              borderSide: const BorderSide(color: Color(0xFF0f3460)),
+                              borderSide: const BorderSide(
+                                color: Color(0xFF0f3460),
+                              ),
                             ),
-                            prefixIcon: const Icon(Icons.person, color: Colors.grey),
+                            prefixIcon: const Icon(
+                              Icons.person,
+                              color: Colors.grey,
+                            ),
                           ),
                         ),
                         const SizedBox(height: 20),
                         TextField(
+                          controller: _emailController,
                           decoration: InputDecoration(
                             labelText: 'Email',
                             labelStyle: const TextStyle(color: Colors.grey),
@@ -191,13 +270,19 @@ class _RegisterPageState extends State<RegisterPage> {
                             ),
                             focusedBorder: OutlineInputBorder(
                               borderRadius: BorderRadius.circular(12),
-                              borderSide: const BorderSide(color: Color(0xFF0f3460)),
+                              borderSide: const BorderSide(
+                                color: Color(0xFF0f3460),
+                              ),
                             ),
-                            prefixIcon: const Icon(Icons.email, color: Colors.grey),
+                            prefixIcon: const Icon(
+                              Icons.email,
+                              color: Colors.grey,
+                            ),
                           ),
                         ),
                         const SizedBox(height: 20),
                         TextField(
+                          controller: _passwordController,
                           obscureText: true,
                           decoration: InputDecoration(
                             labelText: 'Password',
@@ -207,13 +292,19 @@ class _RegisterPageState extends State<RegisterPage> {
                             ),
                             focusedBorder: OutlineInputBorder(
                               borderRadius: BorderRadius.circular(12),
-                              borderSide: const BorderSide(color: Color(0xFF0f3460)),
+                              borderSide: const BorderSide(
+                                color: Color(0xFF0f3460),
+                              ),
                             ),
-                            prefixIcon: const Icon(Icons.lock, color: Colors.grey),
+                            prefixIcon: const Icon(
+                              Icons.lock,
+                              color: Colors.grey,
+                            ),
                           ),
                         ),
                         const SizedBox(height: 20),
                         TextField(
+                          controller: _confirmPasswordController,
                           obscureText: true,
                           decoration: InputDecoration(
                             labelText: 'Confirm Password',
@@ -223,9 +314,14 @@ class _RegisterPageState extends State<RegisterPage> {
                             ),
                             focusedBorder: OutlineInputBorder(
                               borderRadius: BorderRadius.circular(12),
-                              borderSide: const BorderSide(color: Color(0xFF0f3460)),
+                              borderSide: const BorderSide(
+                                color: Color(0xFF0f3460),
+                              ),
                             ),
-                            prefixIcon: const Icon(Icons.lock, color: Colors.grey),
+                            prefixIcon: const Icon(
+                              Icons.lock,
+                              color: Colors.grey,
+                            ),
                           ),
                         ),
                         const SizedBox(height: 24),
@@ -233,14 +329,16 @@ class _RegisterPageState extends State<RegisterPage> {
                           width: double.infinity,
                           height: 56,
                           child: ElevatedButton(
-                            onPressed: () {},
+                            onPressed: _register,
                             style: ElevatedButton.styleFrom(
                               backgroundColor: const Color(0xFF0f3460),
                               shape: RoundedRectangleBorder(
                                 borderRadius: BorderRadius.circular(12),
                               ),
                               elevation: 5,
-                              shadowColor: const Color(0xFF0f3460).withOpacity(0.5),
+                              shadowColor: const Color(
+                                0xFF0f3460,
+                              ).withOpacity(0.5),
                             ),
                             child: const Text(
                               'REGISTER',
@@ -258,8 +356,12 @@ class _RegisterPageState extends State<RegisterPage> {
                           width: double.infinity,
                           height: 56,
                           child: OutlinedButton.icon(
-                            onPressed: () {},
-                            icon: const Icon(Icons.g_mobiledata, color: Colors.red, size: 24),
+                            onPressed: _signUpWithGoogle,
+                            icon: const Icon(
+                              Icons.g_mobiledata,
+                              color: Colors.red,
+                              size: 24,
+                            ),
                             label: const Text(
                               'Sign up with Google',
                               style: TextStyle(
