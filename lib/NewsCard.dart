@@ -1,62 +1,61 @@
 import 'package:flutter/material.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 
 class NewsCard extends StatelessWidget {
+  final String documentId;
   final String imageUrl;
   final String title;
-  final VoidCallback? onTap; //tap on news card to redirect to news detail page
+  final VoidCallback? onTap;
 
-  const NewsCard({super.key, required this.imageUrl, required this.title,this.onTap,});
+  const NewsCard({
+    super.key,
+    required this.documentId,
+    required this.imageUrl,
+    required this.title,
+    this.onTap,
+  });
 
   @override
   Widget build(BuildContext context) {
-    
-    return InkWell(
-      onTap: onTap, 
-      borderRadius: BorderRadius.circular(20), 
-      
-      child: Container(
-        margin: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 8.0),
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(20),
-          image: DecorationImage(
-            image: NetworkImage(imageUrl),
-            fit: BoxFit.cover,
-          ),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(0.15),
-              blurRadius: 12,
-              offset: const Offset(0, 6),
-            )
+    return Card(
+      elevation: 4,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(12),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            ClipRRect(
+              borderRadius: const BorderRadius.vertical(top: Radius.circular(12)),
+              child: CachedNetworkImage(
+                imageUrl: imageUrl,
+                height: 140,
+                fit: BoxFit.cover,
+                placeholder: (context, url) => Container(
+                  height: 140,
+                  color: Colors.grey[200],
+                  child: const Center(child: CircularProgressIndicator()),
+                ),
+                errorWidget: (context, url, error) => Container(
+                  height: 140,
+                  color: Colors.grey[200],
+                  child: const Icon(Icons.broken_image, size: 50, color: Colors.grey),
+                ),
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.all(8.0),
+              child: Text(
+                title,
+                style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
           ],
         ),
-
-        //  use Align to wrap child,让 child always at bottom center
-      child: Align(
-        alignment: Alignment.bottomCenter,
-        child: Container(
-          width: double.infinity,
-          padding: const EdgeInsets.all(16.0),
-          decoration: BoxDecoration(
-            borderRadius: const BorderRadius.only(
-              bottomLeft: Radius.circular(20),
-              bottomRight: Radius.circular(20),
-            ),
-            gradient: LinearGradient(
-              begin: Alignment.bottomCenter,
-              end: Alignment.topCenter,
-              colors: [Colors.black.withOpacity(0.7), Colors.transparent],
-            ),
-          ),
-          child: Text(
-            title,
-            style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 18),
-            maxLines: 2,
-            overflow: TextOverflow.ellipsis,
-          ),
-        ),
       ),
-    )
     );
   }
 }

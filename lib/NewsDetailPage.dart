@@ -1,76 +1,49 @@
 import 'package:flutter/material.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 
 class NewsDetailPage extends StatelessWidget {
-  final String imageUrl;
-  final String title;
-  final String date;
-  final String content;
+  final Map<String, dynamic> news;
 
-  const NewsDetailPage({
-    super.key,
-    required this.imageUrl,
-    required this.title,
-    required this.date,
-    required this.content,
-  });
+  const NewsDetailPage({super.key, required this.news});
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text("News Details"),
+        title: const Text("News Detail"),
+        backgroundColor: Colors.blue[700],
       ),
       body: SingleChildScrollView(
+        padding: const EdgeInsets.all(16.0),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // 1. news image
-            Image.network(
-              imageUrl,
-              width: double.infinity,
-              height: 250,
-              fit: BoxFit.cover,
-              // loading n error processing
-              loadingBuilder: (context, child, progress) {
-                return progress == null ? child : const Center(heightFactor: 5, child: CircularProgressIndicator());
-              },
-              errorBuilder: (context, error, stackTrace) {
-                return const Center(heightFactor: 5, child: Icon(Icons.broken_image, size: 50, color: Colors.grey));
-              },
-            ),
-
-            // 2. title, date and content
-            Padding(
-              padding: const EdgeInsets.all(16.0),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    title,
-                    style: const TextStyle(
-                      fontSize: 24,
-                      fontWeight: FontWeight.bold,
-                    ),
+            if ((news['image'] ?? '').isNotEmpty)
+              ClipRRect(
+                borderRadius: BorderRadius.circular(12),
+                child: CachedNetworkImage(
+                  imageUrl: news['image'],
+                  width: double.infinity,
+                  height: 200,
+                  fit: BoxFit.cover,
+                  placeholder: (context, url) => Container(
+                    height: 200,
+                    color: Colors.grey[200],
+                    child: const Center(child: CircularProgressIndicator()),
                   ),
-                  const SizedBox(height: 8),
-                  Text(
-                    date,
-                    style: TextStyle(
-                      fontSize: 14,
-                      color: Colors.grey.shade600,
-                    ),
+                  errorWidget: (context, url, error) => Container(
+                    height: 200,
+                    color: Colors.grey[200],
+                    child: const Icon(Icons.broken_image, size: 50, color: Colors.grey),
                   ),
-                  const SizedBox(height: 24),
-                  Text(
-                    content,
-                    style: const TextStyle(
-                      fontSize: 16,
-                      height: 1.5, // Adjust line height so can read easily
-                    ),
-                  ),
-                ],
+                ),
               ),
-            ),
+            const SizedBox(height: 16),
+            Text(news['date'] ?? '', style: TextStyle(color: Colors.grey[600])),
+            const SizedBox(height: 8),
+            Text(news['title'] ?? '', style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
+            const SizedBox(height: 16),
+            Text(news['content'] ?? '', style: const TextStyle(fontSize: 16, height: 1.5)),
           ],
         ),
       ),
