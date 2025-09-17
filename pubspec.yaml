@@ -46,6 +46,7 @@ dependencies:
   flutter_slidable: ^3.0.1
   intl: ^0.18.1
   path: ^1.8.0
+  shared_preferences: ^2.2.2
 
 dependency_overrides:
   http: ^0.13.6
