@@ -4,6 +4,8 @@ import 'package:image_picker/image_picker.dart';
 import 'dart:io';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:google_sign_in/google_sign_in.dart';
+import 'package:firebase_storage/firebase_storage.dart';
+import 'package:path_provider/path_provider.dart';
 
 import 'title.dart';
 
@@ -86,15 +88,65 @@ class _RegisterPageState extends State<RegisterPage> {
       return;
     }
 
+    // Show loading indicator
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (BuildContext context) {
+        return const Center(child: CircularProgressIndicator());
+      },
+    );
+
     try {
       UserCredential userCredential = await FirebaseAuth.instance
           .createUserWithEmailAndPassword(
-        email: _emailController.text.trim(),
-        password: _passwordController.text.trim(),
-      );
+            email: _emailController.text.trim(),
+            password: _passwordController.text.trim(),
+          );
 
-      // Update display name
+      String? photoUrl;
+
+      // 🔹 Upload profile picture to Firebase Storage if selected
+      if (_profileImage != null) {
+        try {
+          // Create a temporary copy of the file to ensure it persists
+          final tempDir = await getTemporaryDirectory();
+          final tempFile = File(
+            '${tempDir.path}/profile_${DateTime.now().millisecondsSinceEpoch}.jpg',
+          );
+          await tempFile.writeAsBytes(await _profileImage!.readAsBytes());
+
+          final storageRef = FirebaseStorage.instance
+              .ref()
+              .child("profilePictures") // Changed to match SettingsPage
+              .child("${userCredential.user!.uid}.jpg");
+
+          print("Uploading to: ${storageRef.fullPath}");
+          await storageRef.putFile(tempFile);
+          print("Upload complete");
+
+          photoUrl = await storageRef.getDownloadURL();
+          print("Download URL: $photoUrl");
+
+          // Clean up temporary file
+          await tempFile.delete();
+        } catch (e) {
+          print("Error uploading image: $e");
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(SnackBar(content: Text("Failed to upload image: $e")));
+          // Continue registration without the image
+        }
+      }
+
+      // 🔹 Update Firebase Auth display name + photo
       await userCredential.user!.updateDisplayName(_nameController.text.trim());
+      if (photoUrl != null) {
+        await userCredential.user!.updatePhotoURL(photoUrl);
+      }
+
+      // Hide loading indicator
+      Navigator.of(context).pop();
 
       ScaffoldMessenger.of(
         context,
@@ -106,6 +158,10 @@ class _RegisterPageState extends State<RegisterPage> {
         MaterialPageRoute(builder: (_) => const MainScreen()),
       );
     } on FirebaseAuthException catch (e) {
+      // Hide loading indicator on error
+      if (Navigator.of(context).canPop()) {
+        Navigator.of(context).pop();
+      }
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text(e.message ?? "Registration failed")),
       );

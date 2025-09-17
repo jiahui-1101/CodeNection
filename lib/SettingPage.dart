@@ -1,6 +1,9 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:firebase_storage/firebase_storage.dart';
+import 'package:image_picker/image_picker.dart';
 import 'LoginPage.dart';
 
 class SettingsPage extends StatefulWidget {
@@ -14,8 +17,11 @@ class _SettingsPageState extends State<SettingsPage> {
   bool _notificationsEnabled = true;
   String _username = 'User';
   String _email = 'user@example.com';
+  String? _profileImageUrl;
 
   final FirebaseAuth _auth = FirebaseAuth.instance;
+  final FirebaseStorage _storage = FirebaseStorage.instance;
+  final ImagePicker _imagePicker = ImagePicker();
   User? _currentUser;
 
   @override
@@ -31,11 +37,14 @@ class _SettingsPageState extends State<SettingsPage> {
       final prefs = await SharedPreferences.getInstance();
       setState(() {
         _notificationsEnabled = prefs.getBool('notifications') ?? true;
+        _profileImageUrl = prefs.getString('profileImageUrl');
 
         // Use Firebase user data if available, otherwise use saved data
         if (_currentUser != null) {
           _username = _currentUser!.displayName ?? 'User';
           _email = _currentUser!.email ?? 'user@example.com';
+          // Use Firebase photoURL if available
+          _profileImageUrl = _currentUser!.photoURL ?? _profileImageUrl;
         } else {
           _username = prefs.getString('username') ?? 'User';
           _email = prefs.getString('email') ?? 'user@example.com';
@@ -108,6 +117,7 @@ class _SettingsPageState extends State<SettingsPage> {
         _notificationsEnabled = true;
         _username = 'User';
         _email = 'user@example.com';
+        _profileImageUrl = null;
       });
     } catch (e) {
       print('Error clearing settings: $e');
@@ -115,10 +125,16 @@ class _SettingsPageState extends State<SettingsPage> {
   }
 
   // Update user profile in Firebase
-  Future<void> _updateFirebaseProfile(String displayName) async {
+  Future<void> _updateFirebaseProfile(
+    String displayName,
+    String? photoURL,
+  ) async {
     try {
       if (_currentUser != null) {
         await _currentUser!.updateDisplayName(displayName);
+        if (photoURL != null) {
+          await _currentUser!.updatePhotoURL(photoURL);
+        }
         // Reload user to get updated information
         await _currentUser!.reload();
         _currentUser = _auth.currentUser;
@@ -168,6 +184,102 @@ class _SettingsPageState extends State<SettingsPage> {
     }
   }
 
+  // Pick image from gallery or camera
+  Future<void> _pickImage(ImageSource source) async {
+    try {
+      final XFile? pickedFile = await _imagePicker.pickImage(source: source);
+
+      if (pickedFile != null) {
+        // Show loading indicator
+        showDialog(
+          context: context,
+          barrierDismissible: false,
+          builder: (BuildContext context) {
+            return const Center(child: CircularProgressIndicator());
+          },
+        );
+
+        // Upload image to Firebase Storage
+        final File imageFile = File(pickedFile.path);
+        final Reference storageRef = _storage
+            .ref()
+            .child('profilePictures')
+            .child('${_currentUser!.uid}.jpg');
+
+        final UploadTask uploadTask = storageRef.putFile(imageFile);
+        final TaskSnapshot snapshot = await uploadTask;
+        final String downloadUrl = await snapshot.ref.getDownloadURL();
+
+        // Update user profile with new image URL
+        await _updateFirebaseProfile(_username, downloadUrl);
+
+        // Update local state
+        setState(() {
+          _profileImageUrl = downloadUrl;
+        });
+
+        // Save to shared preferences
+        await _saveSetting('profileImageUrl', downloadUrl);
+
+        // Hide loading indicator
+        Navigator.of(context).pop();
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Profile picture updated successfully'),
+            duration: Duration(seconds: 2),
+          ),
+        );
+      }
+    } catch (e) {
+      // Hide loading indicator if it's still showing
+      if (Navigator.of(context).canPop()) {
+        Navigator.of(context).pop();
+      }
+
+      print('Error picking image: $e');
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Failed to update profile picture: ${e.toString()}'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
+  }
+
+  // Show dialog for image source selection
+  void _showImageSourceDialog() {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text('Select Image Source'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              ListTile(
+                leading: const Icon(Icons.camera_alt),
+                title: const Text('Camera'),
+                onTap: () {
+                  Navigator.of(context).pop();
+                  _pickImage(ImageSource.camera);
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.photo_library),
+                title: const Text('Gallery'),
+                onTap: () {
+                  Navigator.of(context).pop();
+                  _pickImage(ImageSource.gallery);
+                },
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -189,18 +301,55 @@ class _SettingsPageState extends State<SettingsPage> {
       body: ListView(
         children: [
           // User profile section
+          // User profile section
           Container(
             color: theme.colorScheme.surface,
             padding: const EdgeInsets.all(16),
             child: Row(
               children: [
-                CircleAvatar(
-                  radius: 30,
-                  backgroundColor: theme.colorScheme.primary,
-                  child: Text(
-                    (_username.isNotEmpty ? _username[0].toUpperCase() : "?"),
-                    style: const TextStyle(fontSize: 24, color: Colors.white),
-                  ),
+                Stack(
+                  children: [
+                    CircleAvatar(
+                      radius: 30,
+                      backgroundColor: theme.colorScheme.primary,
+                      backgroundImage: _profileImageUrl != null
+                          ? NetworkImage(_profileImageUrl!)
+                          : null,
+                      child: _profileImageUrl == null
+                          ? Text(
+                              (_username.isNotEmpty
+                                  ? _username[0].toUpperCase()
+                                  : "?"),
+                              style: const TextStyle(
+                                fontSize: 24,
+                                color: Colors.white,
+                              ),
+                            )
+                          : null,
+                    ),
+                    Positioned(
+                      bottom: 0,
+                      right: 0,
+                      child: Container(
+                        width: 24, // Smaller container
+                        height: 24, // Smaller container
+                        decoration: BoxDecoration(
+                          color: theme.colorScheme.primary,
+                          shape: BoxShape.circle,
+                          border: Border.all(color: Colors.white, width: 1.5),
+                        ),
+                        child: IconButton(
+                          padding: EdgeInsets.zero, // Remove padding
+                          icon: const Icon(
+                            Icons.camera_alt,
+                            size: 12,
+                          ), // Smaller icon
+                          color: Colors.white,
+                          onPressed: _showImageSourceDialog,
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
                 const SizedBox(width: 16),
                 Expanded(
@@ -211,7 +360,10 @@ class _SettingsPageState extends State<SettingsPage> {
                       Row(
                         children: [
                           Expanded(
-                            child: Text(_email, style: theme.textTheme.bodyMedium),
+                            child: Text(
+                              _email,
+                              style: theme.textTheme.bodyMedium,
+                            ),
                           ),
                           IconButton(
                             icon: const Icon(Icons.refresh, size: 18),
@@ -407,7 +559,10 @@ class _SettingsPageState extends State<SettingsPage> {
                 try {
                   // Update Firebase profile
                   if (_currentUser != null) {
-                    await _updateFirebaseProfile(nameController.text);
+                    await _updateFirebaseProfile(
+                      nameController.text,
+                      _profileImageUrl,
+                    );
                   }
 
                   setState(() {

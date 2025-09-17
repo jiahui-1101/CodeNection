@@ -1,19 +1,46 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:hello_flutter/DrawerNews.dart';
+import 'package:firebase_storage/firebase_storage.dart';
 import 'package:hello_flutter/HotlinePage.dart';
 import 'package:hello_flutter/ManagementSettingsPage.dart';
-import 'package:hello_flutter/EmergencyContactPage.dart';
-import 'package:hello_flutter/LoginPage.dart';
-import 'package:hello_flutter/CallManagementPage.dart';
 
-class ManagementAppDrawer extends StatelessWidget {
+class ManagementAppDrawer extends StatefulWidget {
   const ManagementAppDrawer({super.key});
 
   @override
-  Widget build(BuildContext context) {
-    final User? user = FirebaseAuth.instance.currentUser;
+  State<ManagementAppDrawer> createState() => _ManagementAppDrawerState();
+}
 
+class _ManagementAppDrawerState extends State<ManagementAppDrawer> {
+  final User? user = FirebaseAuth.instance.currentUser;
+  String? _profileImageUrl;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadProfileImage();
+  }
+
+  Future<void> _loadProfileImage() async {
+    if (user != null) {
+      try {
+        // Assume profile picture is saved under: profile_pictures/{uid}.jpg
+        final ref = FirebaseStorage.instance
+            .ref()
+            .child("profile_pictures/${user!.uid}.jpg");
+
+        final url = await ref.getDownloadURL();
+        setState(() {
+          _profileImageUrl = url;
+        });
+      } catch (e) {
+        debugPrint("⚠️ No profile picture found in Firebase Storage: $e");
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
     return Drawer(
       backgroundColor: const Color(0xFFF0FAFF),
       child: ListView(
@@ -36,17 +63,18 @@ class ManagementAppDrawer extends StatelessWidget {
               ),
             ),
             currentAccountPicture: CircleAvatar(
-              backgroundImage: user?.photoURL != null
-                  ? NetworkImage(user!.photoURL!)
-                  : const AssetImage('assets/images/profile_placeholder.png')
-                      as ImageProvider,
+              backgroundImage: _profileImageUrl != null
+                  ? NetworkImage(_profileImageUrl!)
+                  : (user?.photoURL != null
+                      ? NetworkImage(user!.photoURL!)
+                      : const AssetImage('assets/images/profile_placeholder.png')
+                          as ImageProvider),
               radius: 30,
             ),
             decoration: const BoxDecoration(
-              color: Color(0xFF0f3460), // solid color background
+              color: Color(0xFF0f3460),
             ),
           ),
-
 
           // 🔹 Hotline
           ListTile(
@@ -69,10 +97,11 @@ class ManagementAppDrawer extends StatelessWidget {
             onTap: () {
               Navigator.of(context).pop();
               Navigator.of(context).push(
-                MaterialPageRoute(builder: (context) => const ManagementSettingsPage()),
+                MaterialPageRoute(
+                    builder: (context) => const ManagementSettingsPage()),
               );
             },
-          )
+          ),
         ],
       ),
     );
