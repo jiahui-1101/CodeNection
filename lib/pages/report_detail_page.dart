@@ -2,12 +2,12 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:intl/intl.dart';
-import 'package:path/path.dart' as path; // ✅ 确保这里导入了 path
+import 'package:path/path.dart' as path;
 
-import '../models/report_model.dart'; // ✅ 确保这里导入了 Report, ReportStatus, ReportStatusExtension
+import '../models/report_model.dart'; // Report, ReportStatus, ReportStatusExtension
 
 class ReportDetailPage extends StatefulWidget {
-  final Report report; // ✅ 更改为直接接收 Report 对象
+  final Report report;
   const ReportDetailPage({super.key, required this.report});
 
   @override
@@ -19,17 +19,14 @@ class _ReportDetailPageState extends State<ReportDetailPage> {
   late TextEditingController _feedbackController;
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
+  // ✅ 初次同步标记，避免每次 StreamBuilder rebuild 覆盖用户选择
+  bool _initialized = false;
+
   @override
   void initState() {
     super.initState();
     _selectedStatus = widget.report.status;
     _feedbackController = TextEditingController(text: widget.report.feedback ?? '');
-/// Clean up resources used by this widget.
-///
-/// This method is called automatically when the widget is
-/// removed from the tree. It is not necessary to call this
-/// method manually, as it will be called automatically when the
-/// widget is disposed.
   }
 
   @override
@@ -102,7 +99,6 @@ class _ReportDetailPageState extends State<ReportDetailPage> {
     }
   }
 
-
   Future<void> _saveChanges() async {
     try {
       await _firestore.collection('reports').doc(widget.report.id).update({
@@ -132,12 +128,10 @@ class _ReportDetailPageState extends State<ReportDetailPage> {
 
   @override
   Widget build(BuildContext context) {
-    // StreamBuilder now listens to changes on this specific report's document
-    // This ensures that if the report is updated by another admin, this page also updates
     return StreamBuilder<DocumentSnapshot<Report>>(
       stream: _firestore
           .collection('reports')
-          .doc(widget.report.id) // Listen to the specific report ID
+          .doc(widget.report.id)
           .withConverter<Report>(
             fromFirestore: Report.fromFirestore,
             toFirestore: (Report report, _) => report.toFirestore(),
@@ -174,23 +168,13 @@ class _ReportDetailPageState extends State<ReportDetailPage> {
         }
 
         final currentReport = snapshot.data!.data()!;
-        // Update state variables if the report was updated externally
-        // Ensure this only triggers if the _selectedStatus is indeed different
-        // to avoid unnecessary rebuilds or conflicts with user selection.
-        if (_selectedStatus != currentReport.status) {
-          WidgetsBinding.instance.addPostFrameCallback((_) {
-            setState(() {
-              _selectedStatus = currentReport.status;
-            });
-          });
-        }
-        // Update feedback controller if external change
-        if (_feedbackController.text != (currentReport.feedback ?? '')) {
-          WidgetsBinding.instance.addPostFrameCallback((_) {
-            _feedbackController.text = currentReport.feedback ?? '';
-          });
-        }
 
+        // ✅ 只在第一次加载时初始化状态和反馈
+        if (!_initialized) {
+          _selectedStatus = currentReport.status;
+          _feedbackController.text = currentReport.feedback ?? '';
+          _initialized = true;
+        }
 
         return Scaffold(
           appBar: AppBar(
@@ -205,6 +189,7 @@ class _ReportDetailPageState extends State<ReportDetailPage> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
+                // === Report Info Card ===
                 Card(
                   elevation: 3,
                   shape: RoundedRectangleBorder(
@@ -259,6 +244,7 @@ class _ReportDetailPageState extends State<ReportDetailPage> {
 
                 const SizedBox(height: 20),
 
+                // === Update Status Card ===
                 Card(
                   elevation: 3,
                   shape: RoundedRectangleBorder(
@@ -299,6 +285,7 @@ class _ReportDetailPageState extends State<ReportDetailPage> {
 
                 const SizedBox(height: 20),
 
+                // === Feedback Card ===
                 Card(
                   elevation: 3,
                   shape: RoundedRectangleBorder(
@@ -329,6 +316,7 @@ class _ReportDetailPageState extends State<ReportDetailPage> {
 
                 const SizedBox(height: 30),
 
+                // === Save Button ===
                 Center(
                   child: ElevatedButton.icon(
                     icon: const Icon(Icons.save, color: Colors.white),
@@ -359,8 +347,7 @@ class _ReportDetailPageState extends State<ReportDetailPage> {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text("$label: ",
-              style: const TextStyle(fontWeight: FontWeight.bold)),
+          Text("$label: ", style: const TextStyle(fontWeight: FontWeight.bold)),
           Expanded(child: Text(value?.toString() ?? '-', softWrap: true)),
         ],
       ),

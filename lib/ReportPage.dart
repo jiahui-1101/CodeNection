@@ -8,7 +8,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:intl/intl.dart'; 
 import 'package:firebase_auth/firebase_auth.dart';
 
-// Enum for report statuses
+// Enum for report statuses  ,zheg ge hai yao he report_model.dart compare yixia
 enum ReportStatus {
   submitted,
   inProgress,
@@ -417,7 +417,7 @@ String get _currentUserId {
                                 ),
                                 const SizedBox(height: 16),
                                 DropdownButtonFormField<String>(
-                                  value: _selectedCategory,
+                                  initialValue: _selectedCategory,
                                   isExpanded: true,
                                   decoration: const InputDecoration(
                                     labelText: 'Complaint Category',
@@ -665,7 +665,7 @@ class ReportCard extends StatelessWidget {
   final Function(String)? onRequestUrgency; // Callback for urgency
 
   // ✅ 修正：移除 const 关键字，因为 report 是运行时创建的非const对象
-  ReportCard({
+  const ReportCard({
     super.key,
     required this.report,
     this.onRequestUrgency,

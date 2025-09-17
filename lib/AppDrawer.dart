@@ -5,7 +5,6 @@ import 'package:hello_flutter/HotlinePage.dart';
 import 'package:hello_flutter/SettingPage.dart';
 import 'package:hello_flutter/EmergencyContactPage.dart';
 import 'package:hello_flutter/LoginPage.dart';
-import 'package:hello_flutter/CallManagementPage.dart';
 
 class AppDrawer extends StatelessWidget {
   const AppDrawer({super.key});

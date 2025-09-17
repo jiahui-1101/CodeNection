@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:hello_flutter/LoginPage.dart';
 
 class SocialButton extends StatelessWidget {
   final IconData icon;

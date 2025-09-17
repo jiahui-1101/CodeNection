@@ -67,11 +67,12 @@ class Report {
     final data = snapshot.data();
     return Report(
       id: snapshot.id,
-      title: data?['title'] as String,
-      description: data?['description'] as String,
-      category: data?['category'] as String,
-      department: data?['department'] as String,
-      contact: data?['contact'] as String,
+title: data?['title'] as String? ?? '',
+description: data?['description'] as String? ?? '',
+category: data?['category'] as String? ?? '',
+department: data?['department'] as String? ?? '',
+contact: data?['contact'] as String? ?? '',
+
       timestamp: (data?['timestamp'] as Timestamp).toDate(),
       attachmentUrl: data?['attachmentUrl'] as String?,
       attachmentFileName: data?['attachmentFileName'] as String?,
@@ -87,18 +88,19 @@ class Report {
   }
 
   Map<String, dynamic> toFirestore() {
-    return {
-      'title': title,
-      'description': description,
-      'category': category,
-      'department': department,
-      'contact': contact,
-      'timestamp': timestamp,
-      if (attachmentUrl != null) 'attachmentUrl': attachmentUrl,
-      if (attachmentFileName != null) 'attachmentFileName': attachmentFileName,
-      'status': status.name,
-      if (feedback != null) 'feedback': feedback,
-      'lastUpdateTimestamp': lastUpdateTimestamp,
-    };
-  }
+  return {
+    'title': title,
+    'description': description,
+    'category': category,
+    'department': department,
+    'contact': contact,
+    'timestamp': Timestamp.fromDate(timestamp),
+    if (attachmentUrl != null) 'attachmentUrl': attachmentUrl,
+    if (attachmentFileName != null) 'attachmentFileName': attachmentFileName,
+    'status': status.name,
+    if (feedback != null) 'feedback': feedback,
+    'lastUpdateTimestamp': Timestamp.fromDate(lastUpdateTimestamp),
+  };
+}
+
 }

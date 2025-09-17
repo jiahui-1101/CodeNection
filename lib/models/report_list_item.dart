@@ -27,6 +27,7 @@ class ReportListItem extends StatelessWidget {
     return Card(
       margin: const EdgeInsets.symmetric(vertical: 8.0),
       elevation: 2,
+      color: const Color(0xFFE6F2FA), // card background color
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
       child: InkWell(
         onTap: () {
@@ -71,12 +72,12 @@ class ReportListItem extends StatelessWidget {
               const SizedBox(height: 4),
               Text(
                 "Category: ${report.category} | Dept: ${report.department}",
-                style: const TextStyle(fontSize: 13, color: Colors.grey),
+                style: const TextStyle(fontSize: 13, color: Colors.black87),
               ),
               const SizedBox(height: 4),
               Text(
                 "Submitted: ${DateFormat('yyyy-MM-dd HH:mm').format(report.timestamp)}",
-                style: const TextStyle(fontSize: 13, color: Colors.grey),
+                style: const TextStyle(fontSize: 13, color: Colors.black87),
               ),
             ],
           ),
