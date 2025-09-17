@@ -1,4 +1,3 @@
-// navigation_page.dart
 import 'package:flutter/material.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:geolocator/geolocator.dart';
@@ -6,7 +5,7 @@ import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'dart:async';
 import 'package:audioplayers/audioplayers.dart';
-import 'SmartSosButton.dart'; // Import the SOS button
+import 'SmartSosButton.dart';
 import 'package:hello_flutter/SafetyCompanionBottomSheet.dart';
 
 class NavigationPage extends StatefulWidget {
@@ -14,11 +13,15 @@ class NavigationPage extends StatefulWidget {
   final String destination;
   final bool isWalkingTogether;
   final List<Map<String, dynamic>>? matchedPartners;
+  final LatLng? destinationLatLng;
+  final VoidCallback onStartJourney;
 
   const NavigationPage({
     super.key,
     required this.currentLocation,
     required this.destination,
+    required this.onStartJourney,
+    this.destinationLatLng,
     this.isWalkingTogether = false,
     this.matchedPartners,
   });
@@ -29,7 +32,9 @@ class NavigationPage extends StatefulWidget {
 
 class _NavigationPageState extends State<NavigationPage> {
   final Completer<GoogleMapController> _controller = Completer();
-  final String googleApiKey = "AIzaSyALfVigfIlFFmcVIEy-5OGos42GViiQe-M";
+
+  // ✅ Use only serverApiKey in HTTP calls
+  final String serverApiKey = "AIzaSyD8v9hGJLHwma7zYUFhpW4WVbNlehYhpGk";
 
   LatLng? _currentPosition;
   LatLng? _destinationLatLng;
@@ -46,7 +51,6 @@ class _NavigationPageState extends State<NavigationPage> {
   bool _isLoading = true;
   String _errorMessage = "";
 
-  // Safety Companion variables - Only show when walking alone
   bool _showSafetyCompanion = false;
   final AudioPlayer _safetyAudioPlayer = AudioPlayer();
 
@@ -63,9 +67,7 @@ class _NavigationPageState extends State<NavigationPage> {
     super.dispose();
   }
 
-  // Safety Companion methods - Only available when walking alone
   void _toggleSafetyCompanion() {
-    // Only allow safety companion when walking alone
     if (!widget.isWalkingTogether) {
       setState(() {
         _showSafetyCompanion = !_showSafetyCompanion;
@@ -80,20 +82,16 @@ class _NavigationPageState extends State<NavigationPage> {
         _errorMessage = "";
       });
 
-      // Get destination coordinates
-      _destinationLatLng = await _getLatLngFromAddress(widget.destination);
+      _destinationLatLng =
+          widget.destinationLatLng ??
+          await _resolveDestination(widget.destination);
 
       if (_destinationLatLng == null) {
-        throw Exception("Could not find destination coordinates");
+        throw Exception("Could not resolve destination coordinates");
       }
 
-      // Get current position with high accuracy
       await _getCurrentLocationWithRetry();
-
-      // Calculate route
       await _calculateRoute();
-
-      // Start location updates
       _startLocationUpdates();
 
       setState(() {
@@ -104,6 +102,38 @@ class _NavigationPageState extends State<NavigationPage> {
         _isLoading = false;
         _errorMessage = "Failed to initialize navigation: ${e.toString()}";
       });
+    }
+  }
+
+  Future<LatLng?> _resolveDestination(String address) async {
+    try {
+      final placeUrl = Uri.parse(
+        'https://maps.googleapis.com/maps/api/place/textsearch/json'
+        '?query=${Uri.encodeComponent(address)}&key=$serverApiKey',
+      );
+
+      final placeRes = await http.get(placeUrl);
+      final placeData = json.decode(placeRes.body);
+
+      if (placeData['status'] == 'OK' && placeData['results'].isNotEmpty) {
+        final placeId = placeData['results'][0]['place_id'];
+
+        final geoUrl = Uri.parse(
+          'https://maps.googleapis.com/maps/api/geocode/json'
+          '?place_id=$placeId&key=$serverApiKey',
+        );
+
+        final geoRes = await http.get(geoUrl);
+        final geoData = json.decode(geoRes.body);
+
+        if (geoData['status'] == 'OK' && geoData['results'].isNotEmpty) {
+          final loc = geoData['results'][0]['geometry']['location'];
+          return LatLng(loc['lat'], loc['lng']);
+        }
+      }
+      return null;
+    } catch (_) {
+      return null;
     }
   }
 
@@ -131,32 +161,10 @@ class _NavigationPageState extends State<NavigationPage> {
         if (_isLocationAccurate) break;
         await Future.delayed(const Duration(seconds: 2));
       } catch (e) {
-        print('Error getting location (attempt ${i + 1}): $e');
         if (i == retryCount - 1) {
           throw Exception("Failed to get current location: $e");
         }
       }
-    }
-  }
-
-  Future<LatLng?> _getLatLngFromAddress(String address) async {
-    final url = Uri.parse(
-      'https://maps.googleapis.com/maps/api/geocode/json?address=${Uri.encodeComponent(address)}&key=$googleApiKey',
-    );
-
-    try {
-      final response = await http.get(url);
-      if (response.statusCode == 200) {
-        final data = json.decode(response.body);
-        if (data['status'] == 'OK' && data['results'].isNotEmpty) {
-          final location = data['results'][0]['geometry']['location'];
-          return LatLng(location['lat'], location['lng']);
-        }
-      }
-      return null;
-    } catch (e) {
-      print('Geocoding error: $e');
-      return null;
     }
   }
 
@@ -167,72 +175,60 @@ class _NavigationPageState extends State<NavigationPage> {
       'https://maps.googleapis.com/maps/api/directions/json?'
       'origin=${_currentPosition!.latitude},${_currentPosition!.longitude}&'
       'destination=${_destinationLatLng!.latitude},${_destinationLatLng!.longitude}&'
-      'mode=walking&'
-      'key=$googleApiKey',
+      'mode=walking&key=$serverApiKey',
     );
 
-    try {
-      final response = await http.get(url);
-      if (response.statusCode == 200) {
-        final data = json.decode(response.body);
+    final response = await http.get(url);
+    final data = json.decode(response.body);
 
-        if (data['status'] == 'OK') {
-          final points = data['routes'][0]['overview_polyline']['points'];
-          final List<LatLng> routeCoordinates = _decodePolyline(points);
+    if (data['status'] == 'OK') {
+      final points = data['routes'][0]['overview_polyline']['points'];
+      final List<LatLng> routeCoordinates = _decodePolyline(points);
 
-          setState(() {
-            _markers = {
-              Marker(
-                markerId: const MarkerId('current'),
-                position: _currentPosition!,
-                icon: BitmapDescriptor.defaultMarkerWithHue(
-                  BitmapDescriptor.hueBlue,
-                ),
-                infoWindow: const InfoWindow(title: 'Your Location'),
-              ),
-              Marker(
-                markerId: const MarkerId('destination'),
-                position: _destinationLatLng!,
-                icon: BitmapDescriptor.defaultMarkerWithHue(
-                  BitmapDescriptor.hueRed,
-                ),
-                infoWindow: InfoWindow(title: widget.destination),
-              ),
-            };
+      setState(() {
+        _markers = {
+          Marker(
+            markerId: const MarkerId('current'),
+            position: _currentPosition!,
+            icon: BitmapDescriptor.defaultMarkerWithHue(
+              BitmapDescriptor.hueBlue,
+            ),
+          ),
+          Marker(
+            markerId: const MarkerId('destination'),
+            position: _destinationLatLng!,
+            icon: BitmapDescriptor.defaultMarkerWithHue(
+              BitmapDescriptor.hueRed,
+            ),
+          ),
+        };
 
-            _polylines = {
-              Polyline(
-                polylineId: const PolylineId('route'),
-                points: routeCoordinates,
-                color: Colors.blue.shade600,
-                width: 6,
-              ),
-            };
+        _polylines = {
+          Polyline(
+            polylineId: const PolylineId('route'),
+            points: routeCoordinates,
+            color: Colors.blue,
+            width: 6,
+          ),
+        };
 
-            final route = data['routes'][0]['legs'][0];
-            _distanceRemaining = route['distance']['value'] / 1000;
-            _timeRemaining = route['duration']['value'] / 60;
-
-            if (data['routes'][0]['legs'][0]['steps'].isNotEmpty) {
-              _nextInstruction =
-                  data['routes'][0]['legs'][0]['steps'][0]['html_instructions']
-                      .toString()
-                      .replaceAll(RegExp(r'<[^>]*>'), '');
-            }
-          });
+        final route = data['routes'][0]['legs'][0];
+        _distanceRemaining = route['distance']['value'] / 1000;
+        _timeRemaining = route['duration']['value'] / 60;
+        if (route['steps'].isNotEmpty) {
+          _nextInstruction = route['steps'][0]['html_instructions']
+              .toString()
+              .replaceAll(RegExp(r'<[^>]*>'), '');
         }
-      }
-    } catch (e) {
-      print('Route calculation error: $e');
+      });
     }
   }
 
   List<LatLng> _decodePolyline(String encoded) {
     List<LatLng> points = [];
-    int index = 0, len = encoded.length;
-    int lat = 0, lng = 0;
+    int index = 0, lat = 0, lng = 0;
 
-    while (index < len) {
+    while (index < encoded.length) {
       int b, shift = 0, result = 0;
       do {
         b = encoded.codeUnitAt(index++) - 63;
@@ -262,26 +258,36 @@ class _NavigationPageState extends State<NavigationPage> {
       try {
         await _getCurrentLocationWithRetry(retryCount: 1);
         _updateNavigationInfo();
-      } catch (e) {
-        print('Error updating location: $e');
-      }
+
+        // 👇 Keep the map camera centered on you
+        if (_currentPosition != null && _controller.isCompleted) {
+          final GoogleMapController controller = await _controller.future;
+          controller.animateCamera(
+            CameraUpdate.newCameraPosition(
+              CameraPosition(
+                target: _currentPosition!,
+                zoom: 18, // 👈 adjust zoom (higher = closer in)
+                tilt: 60, // optional: 3D tilt
+                bearing: 0, // could be heading if you want compass follow
+              ),
+            ),
+          );
+        }
+      } catch (_) {}
     });
   }
 
   void _updateNavigationInfo() {
     if (_currentPosition == null || _destinationLatLng == null) return;
-
     final distance = Geolocator.distanceBetween(
       _currentPosition!.latitude,
       _currentPosition!.longitude,
       _destinationLatLng!.latitude,
       _destinationLatLng!.longitude,
     );
-
     setState(() {
       _distanceRemaining = distance / 1000;
       _timeRemaining = (_distanceRemaining / 5) * 60;
-
       if (distance < 50) {
         _isNavigating = false;
         _nextInstruction = "You have arrived at your destination!";
@@ -291,15 +297,12 @@ class _NavigationPageState extends State<NavigationPage> {
   }
 
   void _recalibrateLocation() async {
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(const SnackBar(content: Text("Recalibrating location...")));
     try {
       await _getCurrentLocationWithRetry();
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("Failed to recalibrate: ${e.toString()}")),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text("Failed to recalibrate: $e")));
     }
   }
 
@@ -650,7 +653,7 @@ class _NavigationPageState extends State<NavigationPage> {
                 GoogleMap(
                   initialCameraPosition: CameraPosition(
                     target: _currentPosition ?? const LatLng(0, 0),
-                    zoom: 15,
+                    zoom: 18,
                   ),
                   markers: _markers,
                   polylines: _polylines,

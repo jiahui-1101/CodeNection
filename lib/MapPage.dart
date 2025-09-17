@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'loading_page.dart';
 import 'pair_result_page.dart';
-import 'navigation_page.dart'; // Add this import
+import 'navigation_page.dart';
 import 'LocationSelectionPage.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:http/http.dart' as http;
@@ -19,13 +19,14 @@ class _MapPageState extends State<MapPage> {
   String? destination;
   bool journeyStarted = false;
 
-  // For map and route
   GoogleMapController? _mapController;
   LatLng? sourceLatLng;
   LatLng? destinationLatLng;
   Set<Marker> markers = {};
   Set<Polyline> polylines = {};
-  final String googleApiKey = "AIzaSyALfVigfIlFFmcVIEy-5OGos42GViiQe-M";
+
+  // ✅ Use same key as NavigationPage
+  final String serverApiKey = "AIzaSyD8v9hGJLHwma7zYUFhpW4WVbNlehYhpGk";
 
   @override
   void dispose() {
@@ -33,98 +34,75 @@ class _MapPageState extends State<MapPage> {
     super.dispose();
   }
 
-  Future<void> _calculateRoute() async {
-    if (sourceLatLng == null || destinationLatLng == null) return;
-
+  Future<List<LatLng>> _fetchDirectionsFromApi(
+    LatLng origin,
+    LatLng destination,
+  ) async {
     final url = Uri.parse(
       'https://maps.googleapis.com/maps/api/directions/json?'
-      'origin=${sourceLatLng!.latitude},${sourceLatLng!.longitude}&'
-      'destination=${destinationLatLng!.latitude},${destinationLatLng!.longitude}&'
-      'key=$googleApiKey',
+      'origin=${origin.latitude},${origin.longitude}&'
+      'destination=${destination.latitude},${destination.longitude}&'
+      'key=$serverApiKey',
     );
 
-    try {
-      final response = await http.get(url);
-      if (response.statusCode == 200) {
-        final data = json.decode(response.body);
-
-        if (data['status'] == 'OK') {
-          final points = data['routes'][0]['overview_polyline']['points'];
-          final List<LatLng> routeCoordinates = _decodePolyline(points);
-
-          setState(() {
-            markers = {
-              Marker(
-                markerId: const MarkerId('source'),
-                position: sourceLatLng!,
-                infoWindow: InfoWindow(
-                  title: currentLocation ?? 'Current Location',
-                ),
-                icon: BitmapDescriptor.defaultMarkerWithHue(
-                  BitmapDescriptor.hueBlue,
-                ),
-              ),
-              Marker(
-                markerId: const MarkerId('destination'),
-                position: destinationLatLng!,
-                infoWindow: InfoWindow(title: destination ?? 'Destination'),
-                icon: BitmapDescriptor.defaultMarkerWithHue(
-                  BitmapDescriptor.hueRed,
-                ),
-              ),
-            };
-
-            polylines = {
-              Polyline(
-                polylineId: const PolylineId('route'),
-                points: routeCoordinates,
-                color: Colors.blue,
-                width: 5,
-              ),
-            };
-          });
-
-          _mapController?.animateCamera(
-            CameraUpdate.newLatLngBounds(
-              _boundsFromLatLngList([sourceLatLng!, destinationLatLng!]),
-              100,
-            ),
-          );
-        }
-      }
-    } catch (e) {
-      print('Route calculation error: $e');
+    final response = await http.get(url);
+    final data = json.decode(response.body);
+    if (data['status'] != 'OK') {
+      throw Exception("Directions API error: ${data['status']}");
     }
+
+    final points = data['routes'][0]['overview_polyline']['points'];
+    return _decodePolyline(points);
   }
 
-  LatLngBounds _boundsFromLatLngList(List<LatLng> points) {
-    double? west, north, east, south;
-    for (LatLng point in points) {
-      west = west != null
-          ? (west < point.longitude ? west : point.longitude)
-          : point.longitude;
-      north = north != null
-          ? (north > point.latitude ? north : point.latitude)
-          : point.latitude;
-      east = east != null
-          ? (east > point.longitude ? east : point.longitude)
-          : point.longitude;
-      south = south != null
-          ? (south < point.latitude ? south : point.latitude)
-          : point.latitude;
+  Future<void> _getDirections(LatLng origin, LatLng destination) async {
+    final routePoints = await _fetchDirectionsFromApi(origin, destination);
+
+    setState(() {
+      markers = {
+        Marker(markerId: const MarkerId('source'), position: origin),
+        Marker(markerId: const MarkerId('destination'), position: destination),
+      };
+      polylines = {
+        Polyline(
+          polylineId: const PolylineId("route"),
+          color: Colors.blue,
+          width: 5,
+          points: routePoints,
+        ),
+      };
+    });
+
+    // 👇 Zoom map to fit the route
+    if (_mapController != null && routePoints.isNotEmpty) {
+      double minLat = routePoints
+          .map((p) => p.latitude)
+          .reduce((a, b) => a < b ? a : b);
+      double maxLat = routePoints
+          .map((p) => p.latitude)
+          .reduce((a, b) => a > b ? a : b);
+      double minLng = routePoints
+          .map((p) => p.longitude)
+          .reduce((a, b) => a < b ? a : b);
+      double maxLng = routePoints
+          .map((p) => p.longitude)
+          .reduce((a, b) => a > b ? a : b);
+
+      LatLngBounds bounds = LatLngBounds(
+        southwest: LatLng(minLat, minLng),
+        northeast: LatLng(maxLat, maxLng),
+      );
+
+      _mapController!.animateCamera(
+        CameraUpdate.newLatLngBounds(bounds, 50), // padding 50
+      );
     }
-    return LatLngBounds(
-      southwest: LatLng(south!, west!),
-      northeast: LatLng(north!, east!),
-    );
   }
 
   List<LatLng> _decodePolyline(String encoded) {
     List<LatLng> points = [];
-    int index = 0, len = encoded.length;
-    int lat = 0, lng = 0;
-
-    while (index < len) {
+    int index = 0, lat = 0, lng = 0;
+    while (index < encoded.length) {
       int b, shift = 0, result = 0;
       do {
         b = encoded.codeUnitAt(index++) - 63;
@@ -133,7 +111,6 @@ class _MapPageState extends State<MapPage> {
       } while (b >= 0x20);
       int dlat = ((result & 1) != 0 ? ~(result >> 1) : (result >> 1));
       lat += dlat;
-
       shift = 0;
       result = 0;
       do {
@@ -143,28 +120,97 @@ class _MapPageState extends State<MapPage> {
       } while (b >= 0x20);
       int dlng = ((result & 1) != 0 ? ~(result >> 1) : (result >> 1));
       lng += dlng;
-
       points.add(LatLng(lat / 1E5, lng / 1E5));
     }
     return points;
   }
 
-  void _startWalkAlone() {
-    // Navigate directly to NavigationPage for walking alone
+  Future<LatLng?> _getLatLngFromAddress(String address) async {
+    final url = Uri.parse(
+      "https://maps.googleapis.com/maps/api/geocode/json?address=$address&key=$serverApiKey",
+    );
+    final response = await http.get(url);
+    final data = jsonDecode(response.body);
+    if (data['status'] == 'OK') {
+      final location = data['results'][0]['geometry']['location'];
+      return LatLng(location['lat'], location['lng']);
+    }
+    return null;
+  }
+
+  void _startWalkAlone() async {
+    if (sourceLatLng != null && destinationLatLng != null) {
+      await _getDirections(sourceLatLng!, destinationLatLng!);
+    }
     Navigator.push(
       context,
       MaterialPageRoute(
         builder: (_) => NavigationPage(
-          currentLocation: currentLocation!,
-          destination: destination!,
-          isWalkingTogether: false,
+          currentLocation: currentLocation!, // required
+          destination: destination!, // required
+          destinationLatLng: destinationLatLng,
+          isWalkingTogether: false, // or true depending on mode
+          onStartJourney: () {
+            // required
+            setState(() {
+              journeyStarted = true;
+            });
+          },
         ),
       ),
     );
   }
 
+  // ✅ Added: location picker
+  void _selectLocations() async {
+    final result = await Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => const LocationSelectionPage()),
+    );
+
+    if (result != null && result is Map<String, String>) {
+      setState(() {
+        currentLocation = result['current'];
+        destination = result['destination'];
+      });
+
+      sourceLatLng = await _getLatLngFromAddress(currentLocation!);
+      destinationLatLng = await _getLatLngFromAddress(destination!);
+
+      if (sourceLatLng != null && destinationLatLng != null) {
+        await _getDirections(sourceLatLng!, destinationLatLng!);
+        _mapController?.animateCamera(
+          CameraUpdate.newLatLngBounds(
+            LatLngBounds(
+              southwest: LatLng(
+                sourceLatLng!.latitude <= destinationLatLng!.latitude
+                    ? sourceLatLng!.latitude
+                    : destinationLatLng!.latitude,
+                sourceLatLng!.longitude <= destinationLatLng!.longitude
+                    ? sourceLatLng!.longitude
+                    : destinationLatLng!.longitude,
+              ),
+              northeast: LatLng(
+                sourceLatLng!.latitude >= destinationLatLng!.latitude
+                    ? sourceLatLng!.latitude
+                    : destinationLatLng!.latitude,
+                sourceLatLng!.longitude >= destinationLatLng!.longitude
+                    ? sourceLatLng!.longitude
+                    : destinationLatLng!.longitude,
+              ),
+            ),
+            50,
+          ),
+        );
+      }
+    }
+  }
+
+  // ✅ Added: matching logic
+  // ✅ Matching flow: goes to LoadingPage first
   void _startMatching() async {
-    // Navigate to loading page
+    if (currentLocation == null || destination == null) return;
+
     final result = await Navigator.push(
       context,
       MaterialPageRoute(
@@ -175,91 +221,48 @@ class _MapPageState extends State<MapPage> {
       ),
     );
 
-    // Handle result from matching
     if (result != null && result is Map<String, dynamic>) {
-      if (result['isMatched']) {
-        // Matched - navigate to pair result page
-        await Navigator.push(
+      final bool isMatched = result['isMatched'] ?? false;
+      final matchedPartners = result['matchedPartners'] ?? [];
+
+      if (!mounted) return;
+
+      // If matched → show PairResultPage
+      if (isMatched) {
+        Navigator.push(
           context,
           MaterialPageRoute(
             builder: (_) => PairResultPage(
               currentLocation: currentLocation!,
               destination: destination!,
-              matchedPartners: result['matchedPartners'],
+              matchedPartners: matchedPartners,
               onStartJourney: () {
-                // Navigate to NavigationPage with matched partners
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (_) => NavigationPage(
-                      currentLocation: currentLocation!,
-                      destination: destination!,
-                      isWalkingTogether: true,
-                      matchedPartners: result['matchedPartners'],
-                    ),
-                  ),
-                );
+                setState(() {
+                  journeyStarted = true;
+                });
               },
             ),
           ),
         );
       } else {
-        // Not matched - start walking alone
-        _startWalkAlone();
+        // If no match → just walk alone
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (_) => NavigationPage(
+              currentLocation: currentLocation!,
+              destination: destination!,
+              destinationLatLng: destinationLatLng,
+              isWalkingTogether: false,
+              onStartJourney: () {
+                setState(() {
+                  journeyStarted = true;
+                });
+              },
+            ),
+          ),
+        );
       }
-    }
-  }
-
-  void _selectLocations() async {
-    final result = await Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (_) =>
-            LocationSelectionPage(initialCurrentLocation: currentLocation),
-      ),
-    );
-
-    if (result != null && result is Map<String, String>) {
-      setState(() {
-        if (result['current'] != null) {
-          currentLocation = result['current'];
-        }
-        destination = result['destination'];
-      });
-
-      final sourceCoords = currentLocation != null
-          ? await _getLatLngFromAddress(currentLocation!)
-          : sourceLatLng;
-      final destCoords = await _getLatLngFromAddress(destination!);
-
-      if (sourceCoords != null && destCoords != null) {
-        setState(() {
-          sourceLatLng = sourceCoords;
-          destinationLatLng = destCoords;
-        });
-        await _calculateRoute();
-      }
-    }
-  }
-
-  Future<LatLng?> _getLatLngFromAddress(String address) async {
-    final url = Uri.parse(
-      'https://maps.googleapis.com/maps/api/geocode/json?address=${Uri.encodeComponent(address)}&key=$googleApiKey',
-    );
-
-    try {
-      final response = await http.get(url);
-      if (response.statusCode == 200) {
-        final data = json.decode(response.body);
-        if (data['status'] == 'OK' && data['results'].isNotEmpty) {
-          final location = data['results'][0]['geometry']['location'];
-          return LatLng(location['lat'], location['lng']);
-        }
-      }
-      return null;
-    } catch (e) {
-      print('Geocoding error: $e');
-      return null;
     }
   }
 
@@ -271,7 +274,7 @@ class _MapPageState extends State<MapPage> {
           GoogleMap(
             initialCameraPosition: const CameraPosition(
               target: LatLng(1.5590, 103.6370),
-              zoom: 12,
+              zoom: 16,
             ),
             markers: markers,
             polylines: polylines,
@@ -283,9 +286,9 @@ class _MapPageState extends State<MapPage> {
             },
           ),
 
+          // Zoom buttons
           Positioned(
-            bottom:
-                160, // 👈 place above bottom widgets (like Start Journey button or SOS)
+            bottom: 160,
             right: 16,
             child: Column(
               children: [
@@ -310,6 +313,7 @@ class _MapPageState extends State<MapPage> {
             ),
           ),
 
+          // Search bar
           SafeArea(
             child: Container(
               margin: const EdgeInsets.all(12),
@@ -348,7 +352,11 @@ class _MapPageState extends State<MapPage> {
                   if (destination != null)
                     IconButton(
                       icon: const Icon(Icons.refresh, color: Colors.blue),
-                      onPressed: _calculateRoute,
+                      onPressed: () {
+                        if (sourceLatLng != null && destinationLatLng != null) {
+                          _getDirections(sourceLatLng!, destinationLatLng!);
+                        }
+                      },
                       tooltip: "Recalculate route",
                     ),
                 ],
@@ -356,6 +364,7 @@ class _MapPageState extends State<MapPage> {
             ),
           ),
 
+          // Start journey button
           if (destination != null && !journeyStarted)
             Align(
               alignment: Alignment.bottomCenter,
@@ -391,8 +400,7 @@ class _MapPageState extends State<MapPage> {
         mainAxisSize: MainAxisSize.min,
         children: [
           ElevatedButton(
-            onPressed:
-                _startWalkAlone, // Updated to call _startWalkAlone directly
+            onPressed: _startWalkAlone,
             style: ElevatedButton.styleFrom(
               minimumSize: const Size.fromHeight(50),
               backgroundColor: Colors.green,
@@ -404,8 +412,7 @@ class _MapPageState extends State<MapPage> {
           ),
           const SizedBox(height: 12),
           ElevatedButton(
-            onPressed:
-                _startMatching, // Updated to call _startMatching directly
+            onPressed: _startMatching,
             style: ElevatedButton.styleFrom(
               minimumSize: const Size.fromHeight(50),
               backgroundColor: Colors.orange,
