@@ -3,14 +3,14 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'LoginPage.dart';
 
-class SettingsPage extends StatefulWidget {
-  const SettingsPage({super.key});
+class ManagementSettingsPage extends StatefulWidget {
+  const ManagementSettingsPage({super.key});
 
   @override
-  State<SettingsPage> createState() => _SettingsPageState();
+  State<ManagementSettingsPage> createState() => _ManagementSettingsPageState();
 }
 
-class _SettingsPageState extends State<SettingsPage> {
+class _ManagementSettingsPageState extends State<ManagementSettingsPage> {
   bool _notificationsEnabled = true;
   String _username = 'User';
   String _email = 'user@example.com';
@@ -25,14 +25,13 @@ class _SettingsPageState extends State<SettingsPage> {
     _loadSettings();
   }
 
-  // Load saved settings from shared preferences
+  // Load saved settings
   Future<void> _loadSettings() async {
     try {
       final prefs = await SharedPreferences.getInstance();
       setState(() {
         _notificationsEnabled = prefs.getBool('notifications') ?? true;
 
-        // Use Firebase user data if available, otherwise use saved data
         if (_currentUser != null) {
           _username = _currentUser!.displayName ?? 'User';
           _email = _currentUser!.email ?? 'user@example.com';
@@ -43,7 +42,6 @@ class _SettingsPageState extends State<SettingsPage> {
       });
     } catch (e) {
       print('Error loading settings: $e');
-      // Fallback to default values if loading fails
       setState(() {
         _notificationsEnabled = true;
         _username = 'User';
@@ -52,7 +50,7 @@ class _SettingsPageState extends State<SettingsPage> {
     }
   }
 
-  // Refresh email from Firebase
+  // Refresh email
   Future<void> _refreshEmail() async {
     try {
       await _currentUser?.reload();
@@ -77,7 +75,6 @@ class _SettingsPageState extends State<SettingsPage> {
     }
   }
 
-  // Save a setting value to shared preferences
   Future<void> _saveSetting(String key, dynamic value) async {
     try {
       final prefs = await SharedPreferences.getInstance();
@@ -88,7 +85,6 @@ class _SettingsPageState extends State<SettingsPage> {
       }
     } catch (e) {
       print('Error saving setting: $e');
-      // Show error message to user
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('Failed to save settings. Please try again.'),
@@ -98,12 +94,10 @@ class _SettingsPageState extends State<SettingsPage> {
     }
   }
 
-  // Clear all settings (for logout or reset)
   Future<void> _clearAllSettings() async {
     try {
       final prefs = await SharedPreferences.getInstance();
       await prefs.clear();
-      // Reset to default values
       setState(() {
         _notificationsEnabled = true;
         _username = 'User';
@@ -114,12 +108,10 @@ class _SettingsPageState extends State<SettingsPage> {
     }
   }
 
-  // Update user profile in Firebase
   Future<void> _updateFirebaseProfile(String displayName) async {
     try {
       if (_currentUser != null) {
         await _currentUser!.updateDisplayName(displayName);
-        // Reload user to get updated information
         await _currentUser!.reload();
         _currentUser = _auth.currentUser;
       }
@@ -129,35 +121,6 @@ class _SettingsPageState extends State<SettingsPage> {
     }
   }
 
-  // Update password in Firebase
-  Future<void> _updateFirebasePassword(String newPassword) async {
-    try {
-      if (_currentUser != null) {
-        await _currentUser!.updatePassword(newPassword);
-      }
-    } catch (e) {
-      print('Error updating Firebase password: $e');
-      rethrow;
-    }
-  }
-
-  // Reauthenticate user (required for sensitive operations like email/password change)
-  Future<void> _reauthenticate(String password) async {
-    try {
-      if (_currentUser != null && _currentUser!.email != null) {
-        AuthCredential credential = EmailAuthProvider.credential(
-          email: _currentUser!.email!,
-          password: password,
-        );
-        await _currentUser!.reauthenticateWithCredential(credential);
-      }
-    } catch (e) {
-      print('Error reauthenticating: $e');
-      rethrow;
-    }
-  }
-
-  // Sign out from Firebase
   Future<void> _signOut() async {
     try {
       await _auth.signOut();
@@ -188,7 +151,7 @@ class _SettingsPageState extends State<SettingsPage> {
       backgroundColor: theme.colorScheme.background,
       body: ListView(
         children: [
-          // User profile section
+          // User profile
           Container(
             color: theme.colorScheme.surface,
             padding: const EdgeInsets.all(16),
@@ -229,7 +192,7 @@ class _SettingsPageState extends State<SettingsPage> {
 
           const SizedBox(height: 16),
 
-          // --- General Settings ---
+          // General
           Padding(
             padding: const EdgeInsets.fromLTRB(16.0, 8.0, 16.0, 8.0),
             child: Text('General', style: headerStyle),
@@ -246,10 +209,7 @@ class _SettingsPageState extends State<SettingsPage> {
                 SwitchListTile(
                   secondary: const Icon(Icons.notifications_outlined),
                   title: Text('Notification', style: titleStyle),
-                  subtitle: Text(
-                    'Enable push notifications',
-                    style: subtitleStyle,
-                  ),
+                  subtitle: Text('Enable push notifications', style: subtitleStyle),
                   value: _notificationsEnabled,
                   onChanged: (bool value) {
                     setState(() {
@@ -264,7 +224,7 @@ class _SettingsPageState extends State<SettingsPage> {
 
           const SizedBox(height: 24),
 
-          // --- Account Settings ---
+          // Account
           Padding(
             padding: const EdgeInsets.fromLTRB(16.0, 8.0, 16.0, 8.0),
             child: Text('Account', style: headerStyle),
@@ -286,29 +246,13 @@ class _SettingsPageState extends State<SettingsPage> {
                     _showEditProfileDialog();
                   },
                 ),
-                ListTile(
-                  leading: const Icon(Icons.lock_outline),
-                  title: Text('Update Password', style: titleStyle),
-                  trailing: const Icon(Icons.arrow_forward_ios, size: 16),
-                  onTap: () {
-                    _showUpdatePasswordDialog();
-                  },
-                ),
-                ListTile(
-                  leading: const Icon(Icons.email_outlined),
-                  title: Text('Change Email', style: titleStyle),
-                  trailing: const Icon(Icons.arrow_forward_ios, size: 16),
-                  onTap: () {
-                    _showChangeEmailDialog();
-                  },
-                ),
               ],
             ),
           ),
 
           const SizedBox(height: 24),
 
-          // --- About Section ---
+          // About
           Padding(
             padding: const EdgeInsets.fromLTRB(16.0, 8.0, 16.0, 8.0),
             child: Text('About', style: headerStyle),
@@ -352,7 +296,7 @@ class _SettingsPageState extends State<SettingsPage> {
 
           const SizedBox(height: 32),
 
-          // Logout button
+          // Logout
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16.0),
             child: ElevatedButton.icon(
@@ -405,17 +349,14 @@ class _SettingsPageState extends State<SettingsPage> {
             ElevatedButton(
               onPressed: () async {
                 try {
-                  // Update Firebase profile
                   if (_currentUser != null) {
                     await _updateFirebaseProfile(nameController.text);
                   }
-
                   setState(() {
                     _username = nameController.text;
                   });
                   _saveSetting('username', _username);
                   Navigator.of(context).pop();
-
                   ScaffoldMessenger.of(context).showSnackBar(
                     const SnackBar(
                       content: Text('Profile updated successfully'),
@@ -426,180 +367,7 @@ class _SettingsPageState extends State<SettingsPage> {
                   Navigator.of(context).pop();
                   ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(
-                      content: Text(
-                        'Failed to update profile: ${e.toString()}',
-                      ),
-                      backgroundColor: Colors.red,
-                    ),
-                  );
-                }
-              },
-              child: const Text('Save'),
-            ),
-          ],
-        );
-      },
-    );
-  }
-
-  void _showUpdatePasswordDialog() {
-    TextEditingController currentController = TextEditingController();
-    TextEditingController newController = TextEditingController();
-    TextEditingController confirmController = TextEditingController();
-
-    showDialog(
-      context: context,
-      builder: (BuildContext context) {
-        return AlertDialog(
-          title: const Text('Update Password'),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              TextField(
-                controller: currentController,
-                decoration: const InputDecoration(
-                  labelText: 'Current Password',
-                  border: OutlineInputBorder(),
-                ),
-                obscureText: true,
-              ),
-              const SizedBox(height: 16),
-              TextField(
-                controller: newController,
-                decoration: const InputDecoration(
-                  labelText: 'New Password',
-                  border: OutlineInputBorder(),
-                ),
-                obscureText: true,
-              ),
-              const SizedBox(height: 16),
-              TextField(
-                controller: confirmController,
-                decoration: const InputDecoration(
-                  labelText: 'Confirm New Password',
-                  border: OutlineInputBorder(),
-                ),
-                obscureText: true,
-              ),
-            ],
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(),
-              child: const Text('Cancel'),
-            ),
-            ElevatedButton(
-              onPressed: () async {
-                // Validate passwords
-                if (newController.text != confirmController.text) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text('New passwords do not match'),
-                      backgroundColor: Colors.red,
-                    ),
-                  );
-                  return;
-                }
-
-                try {
-                  // Reauthenticate user
-                  await _reauthenticate(currentController.text);
-
-                  // Update password in Firebase
-                  await _updateFirebasePassword(newController.text);
-
-                  Navigator.of(context).pop();
-
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text('Password updated successfully'),
-                      duration: Duration(seconds: 2),
-                    ),
-                  );
-                } catch (e) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text(
-                        'Failed to update password: ${e.toString()}',
-                      ),
-                      backgroundColor: Colors.red,
-                    ),
-                  );
-                }
-              },
-              child: const Text('Update'),
-            ),
-          ],
-        );
-      },
-    );
-  }
-
-  void _showChangeEmailDialog() {
-    TextEditingController emailController = TextEditingController();
-    TextEditingController passwordController = TextEditingController();
-
-    showDialog(
-      context: context,
-      builder: (BuildContext context) {
-        return AlertDialog(
-          title: const Text('Change Email'),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              TextField(
-                controller: emailController,
-                decoration: const InputDecoration(
-                  labelText: 'New Email',
-                  border: OutlineInputBorder(),
-                ),
-                keyboardType: TextInputType.emailAddress,
-              ),
-              const SizedBox(height: 16),
-              TextField(
-                controller: passwordController,
-                decoration: const InputDecoration(
-                  labelText: 'Password',
-                  border: OutlineInputBorder(),
-                ),
-                obscureText: true,
-              ),
-            ],
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(),
-              child: const Text('Cancel'),
-            ),
-            ElevatedButton(
-              onPressed: () async {
-                try {
-                  // Reauthenticate user
-                  await _reauthenticate(passwordController.text);
-
-                  // Send verification to new email
-                  if (_currentUser != null) {
-                    await _currentUser!.verifyBeforeUpdateEmail(
-                      emailController.text,
-                    );
-
-                    Navigator.of(context).pop();
-
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: Text(
-                          'Verification email sent to ${emailController.text}. '
-                          'Please confirm to complete email change.',
-                        ),
-                        duration: const Duration(seconds: 5),
-                      ),
-                    );
-                  }
-                } catch (e) {
-                  Navigator.of(context).pop();
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text('Failed to update email: ${e.toString()}'),
+                      content: Text('Failed to update profile: ${e.toString()}'),
                       backgroundColor: Colors.red,
                     ),
                   );
@@ -620,7 +388,8 @@ class _SettingsPageState extends State<SettingsPage> {
         return AlertDialog(
           title: const Text('About Us'),
           content: const Text(
-            'JustBrightForUTM makes campus safety smarter and faster. With real-time, accessible features, students can reach help instantly— '
+            'JustBrightForUTM makes campus safety smarter and faster. '
+            'With real-time, accessible features, students can reach help instantly— '
             'building trust, confidence, and peace of mind for everyone on campus.\n\n'
             'Version: 1.0.0',
           ),
@@ -647,24 +416,20 @@ class _SettingsPageState extends State<SettingsPage> {
           actions: [
             TextButton(
               onPressed: () {
-                Navigator.of(context).pop(); // close dialog
+                Navigator.of(context).pop();
               },
               child: const Text('Cancel'),
             ),
             TextButton(
               onPressed: () async {
                 try {
-                  // Perform logout operation
                   await _signOut();
                   _clearAllSettings();
-                  Navigator.of(context).pop(); // close dialog
-
-                  // Navigate back to LoginPage and clear history
+                  Navigator.of(context).pop();
                   Navigator.of(context).pushAndRemoveUntil(
                     MaterialPageRoute(builder: (context) => const LoginPage()),
                     (Route<dynamic> route) => false,
                   );
-
                   ScaffoldMessenger.of(context).showSnackBar(
                     const SnackBar(content: Text('Logged out successfully')),
                   );

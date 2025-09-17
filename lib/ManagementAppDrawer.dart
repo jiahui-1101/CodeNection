@@ -2,12 +2,13 @@ import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:hello_flutter/DrawerNews.dart';
 import 'package:hello_flutter/HotlinePage.dart';
-import 'package:hello_flutter/SettingPage.dart';
+import 'package:hello_flutter/ManagementSettingsPage.dart';
 import 'package:hello_flutter/EmergencyContactPage.dart';
 import 'package:hello_flutter/LoginPage.dart';
+import 'package:hello_flutter/CallManagementPage.dart';
 
-class AppDrawer extends StatelessWidget {
-  const AppDrawer({super.key});
+class ManagementAppDrawer extends StatelessWidget {
+  const ManagementAppDrawer({super.key});
 
   @override
   Widget build(BuildContext context) {
@@ -46,30 +47,6 @@ class AppDrawer extends StatelessWidget {
             ),
           ),
 
-          // 🔹 News
-          ListTile(
-            title: const Text('News and Updates'),
-            trailing: const Icon(Icons.upcoming),
-            onTap: () {
-              Navigator.of(context).pop();
-              Navigator.of(context).push(
-                MaterialPageRoute(builder: (context) => const DrawerNews()),
-              );
-            },
-          ),
-
-          // 🔹 Emergency Contact
-          ListTile(
-            title: const Text('Emergency Contact'),
-            trailing: const Icon(Icons.phone_in_talk),
-            onTap: () {
-              Navigator.of(context).pop();
-              Navigator.of(context).push(
-                MaterialPageRoute(
-                    builder: (context) => const EmergencyContactPage()),
-              );
-            },
-          ),
 
           // 🔹 Hotline
           ListTile(
@@ -92,10 +69,10 @@ class AppDrawer extends StatelessWidget {
             onTap: () {
               Navigator.of(context).pop();
               Navigator.of(context).push(
-                MaterialPageRoute(builder: (context) => const SettingsPage()),
+                MaterialPageRoute(builder: (context) => const ManagementSettingsPage()),
               );
             },
-          ),
+          )
         ],
       ),
     );

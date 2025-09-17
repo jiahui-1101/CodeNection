@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:hello_flutter/ManagementTopBar.dart';
 import 'package:hello_flutter/title.dart';
-import 'package:hello_flutter/AppDrawer.dart';
+import 'ManagementTopBar.dart';
+import 'package:hello_flutter/ManagementAppDrawer.dart';
 import 'EmergencyPage.dart';
 import 'NewsUpdatePage.dart';
 import 'ReportUpdatePage.dart';
@@ -52,7 +53,7 @@ class _CallManagementPageState extends State<CallManagementPage> {
           ),
         ],
       ),
-      drawer: const AppDrawer(),
+      drawer: const ManagementAppDrawer(),
       body: Stack(
         clipBehavior: Clip.none,
         children: [
