@@ -97,21 +97,6 @@ class AppDrawer extends StatelessWidget {
               );
             },
           ),
-
-          const Divider(),
-
-          // 🔹 Logout
-          ListTile(
-            leading: const Icon(Icons.logout),
-            title: const Text('Logout'),
-            onTap: () async {
-              await FirebaseAuth.instance.signOut();
-              Navigator.of(context).pushAndRemoveUntil(
-                MaterialPageRoute(builder: (context) => const LoginPage()),
-                (Route<dynamic> route) => false,
-              );
-            },
-          ),
         ],
       ),
     );

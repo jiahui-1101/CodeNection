@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:hello_flutter/DrawerNews.dart';
 import 'package:hello_flutter/HotlinePage.dart';
-import 'package:hello_flutter/SettingPage.dart';
+import 'package:hello_flutter/ManagementSettingsPage.dart';
 import 'package:hello_flutter/EmergencyContactPage.dart';
 import 'package:hello_flutter/LoginPage.dart';
 import 'package:hello_flutter/CallManagementPage.dart';
@@ -69,25 +69,10 @@ class ManagementAppDrawer extends StatelessWidget {
             onTap: () {
               Navigator.of(context).pop();
               Navigator.of(context).push(
-                MaterialPageRoute(builder: (context) => const SettingsPage()),
+                MaterialPageRoute(builder: (context) => const ManagementSettingsPage()),
               );
             },
-          ),
-
-          const Divider(),
-
-          // 🔹 Logout
-          ListTile(
-            leading: const Icon(Icons.logout),
-            title: const Text('Logout'),
-            onTap: () async {
-              await FirebaseAuth.instance.signOut();
-              Navigator.of(context).pushAndRemoveUntil(
-                MaterialPageRoute(builder: (context) => const LoginPage()),
-                (Route<dynamic> route) => false,
-              );
-            },
-          ),
+          )
         ],
       ),
     );
