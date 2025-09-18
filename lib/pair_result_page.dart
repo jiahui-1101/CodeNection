@@ -1,6 +1,8 @@
 // pair_result_page.dart
 import 'package:flutter/material.dart';
-import 'navigation_page.dart'; // Import the navigation page
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'navigation_page.dart';
 import 'chat_page.dart';
 
 class PairResultPage extends StatefulWidget {
@@ -15,7 +17,6 @@ class PairResultPage extends StatefulWidget {
     required this.destination,
     required this.matchedPartners,
     required this.onStartJourney,
-    
   });
 
   @override
@@ -23,70 +24,47 @@ class PairResultPage extends StatefulWidget {
 }
 
 class _PairResultPageState extends State<PairResultPage> {
-  // Generate mock data to display instead of null values
-  List<Map<String, dynamic>> get displayPartners {
-    if (widget.matchedPartners.isEmpty ||
-        widget.matchedPartners.any((partner) => partner['name'] == null)) {
-      return [
-        {
-          'name': 'Sarah Johnson',
-          'rating': 4.8,
-          'walkingSpeed': 'Moderate',
-          'matchPercentage': 92,
-          'profileImage': '👩',
-          'distance': '0.2 miles away',
-          'interests': ['Music', 'Reading', 'Coffee'],
-        },
-        {
-          'name': 'Michael Chen',
-          'rating': 4.5,
-          'walkingSpeed': 'Brisk',
-          'matchPercentage': 85,
-          'profileImage': '👨',
-          'distance': '0.5 miles away',
-          'interests': ['Technology', 'Hiking', 'Photography'],
-        },
-        {
-          'name': 'Emma Williams',
-          'rating': 4.9,
-          'walkingSpeed': 'Leisurely',
-          'matchPercentage': 78,
-          'profileImage': '👩',
-          'distance': '0.3 miles away',
-          'interests': ['Art', 'Yoga', 'Travel'],
-        },
-      ];
-    }
-    return widget.matchedPartners;
+  final FirebaseAuth _auth = FirebaseAuth.instance;
+  String? _currentUserId;
+
+  @override
+  void initState() {
+    super.initState();
+    _currentUserId = _auth.currentUser?.uid;
   }
 
-  String get displayCurrentLocation {
-    return widget.currentLocation.isEmpty
-        ? '123 Main Street, Downtown'
-        : widget.currentLocation;
+  String _getAvatarEmoji(String email) {
+    // Simple emoji based on email hash for consistency
+    final hash = email.hashCode;
+    final emojis = ['👤', '👨', '👩', '🧑', '👨‍💼', '👩‍💼', '🧑‍💼'];
+    return emojis[hash.abs() % emojis.length];
   }
 
-  String get displayDestination {
-    return widget.destination.isEmpty
-        ? 'Central Park, West Side'
-        : widget.destination;
+  String _getDisplayName(String email) {
+    // Extract name from email (part before @)
+    final namePart = email.split('@').first;
+    // Capitalize first letter of each word
+    return namePart
+        .split('.')
+        .map((part) {
+          if (part.isEmpty) return part;
+          return part[0].toUpperCase() + part.substring(1);
+        })
+        .join(' ');
   }
 
   void _startNavigation() {
-    // Call the original callback if needed
     widget.onStartJourney();
 
-    // Navigate to NavigationPage
     Navigator.pushReplacement(
       context,
       MaterialPageRoute(
         builder: (context) => NavigationPage(
           currentLocation: widget.currentLocation,
           destination: widget.destination,
-          destinationLatLng: null, // or pass real LatLng if available
+          destinationLatLng: null,
           isWalkingTogether: true,
           onStartJourney: () {
-            // Optional: handle when journey starts
             debugPrint("Journey started from PairResultPage ✅");
           },
         ),
@@ -136,7 +114,13 @@ class _PairResultPageState extends State<PairResultPage> {
                           size: 20,
                         ),
                         const SizedBox(width: 8),
-                        Expanded(child: Text(displayCurrentLocation)),
+                        Expanded(
+                          child: Text(
+                            widget.currentLocation.isEmpty
+                                ? 'Current Location'
+                                : widget.currentLocation,
+                          ),
+                        ),
                       ],
                     ),
                     const SizedBox(height: 8),
@@ -146,7 +130,13 @@ class _PairResultPageState extends State<PairResultPage> {
                       children: [
                         const Icon(Icons.flag, color: Colors.red, size: 20),
                         const SizedBox(width: 8),
-                        Expanded(child: Text(displayDestination)),
+                        Expanded(
+                          child: Text(
+                            widget.destination.isEmpty
+                                ? 'Destination'
+                                : widget.destination,
+                          ),
+                        ),
                       ],
                     ),
                   ],
@@ -164,95 +154,72 @@ class _PairResultPageState extends State<PairResultPage> {
             const SizedBox(height: 10),
 
             Expanded(
-              child: ListView.builder(
-                itemCount: displayPartners.length,
-                itemBuilder: (context, index) {
-                  final user = displayPartners[index];
-                  return Card(
-                    elevation: 2,
-                    margin: const EdgeInsets.only(bottom: 12),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: ListTile(
-                      contentPadding: const EdgeInsets.all(12),
-                      leading: CircleAvatar(
-                        backgroundColor: Colors.blue.shade100,
-                        radius: 24,
-                        child: Text(
-                          user['profileImage'] ?? '👤',
-                          style: const TextStyle(fontSize: 20),
-                        ),
+              child: widget.matchedPartners.isEmpty
+                  ? const Center(
+                      child: Text(
+                        'No partners found',
+                        style: TextStyle(fontSize: 16, color: Colors.grey),
                       ),
-                      title: Text(
-                        user['name'] ?? 'Walking Partner',
-                        style: const TextStyle(fontWeight: FontWeight.bold),
-                      ),
-                      subtitle: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          const SizedBox(height: 4),
-                          Row(
-                            children: [
-                              const Icon(
-                                Icons.star,
-                                color: Colors.amber,
-                                size: 16,
-                              ),
-                              const SizedBox(width: 4),
-                              Text('${user['rating'] ?? '4.5'} Rating'),
-                            ],
+                    )
+                  : ListView.builder(
+                      itemCount: widget.matchedPartners.length,
+                      itemBuilder: (context, index) {
+                        final partner = widget.matchedPartners[index];
+                        final email = partner['email'] ?? 'Unknown';
+                        final displayName = _getDisplayName(email);
+                        final avatar = _getAvatarEmoji(email);
+
+                        return Card(
+                          elevation: 2,
+                          margin: const EdgeInsets.only(bottom: 12),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
                           ),
-                          const SizedBox(height: 2),
-                          Row(
-                            children: [
-                              const Icon(
-                                Icons.directions_walk,
-                                color: Colors.blue,
-                                size: 16,
+                          child: ListTile(
+                            contentPadding: const EdgeInsets.all(12),
+                            leading: CircleAvatar(
+                              backgroundColor: Colors.blue.shade100,
+                              radius: 24,
+                              child: Text(
+                                avatar,
+                                style: const TextStyle(fontSize: 20),
                               ),
-                              const SizedBox(width: 4),
-                              Text(
-                                '${user['walkingSpeed'] ?? 'Moderate'} Pace',
+                            ),
+                            title: Text(
+                              displayName,
+                              style: const TextStyle(
+                                fontWeight: FontWeight.bold,
                               ),
-                            ],
+                            ),
+                            subtitle: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                const SizedBox(height: 4),
+                                Text(email),
+                                const SizedBox(height: 4),
+                                Text(
+                                  'Going to: ${partner['destination'] ?? 'Unknown'}',
+                                  style: TextStyle(
+                                    fontSize: 14,
+                                    color: Colors.grey.shade600,
+                                  ),
+                                ),
+                              ],
+                            ),
+                            onTap: () {
+                              _showUserDetails(context, partner);
+                            },
                           ),
-                          const SizedBox(height: 2),
-                          Row(
-                            children: [
-                              const Icon(
-                                Icons.location_pin,
-                                color: Colors.green,
-                                size: 16,
-                              ),
-                              const SizedBox(width: 4),
-                              Text(user['distance'] ?? 'Nearby'),
-                            ],
-                          ),
-                        ],
-                      ),
-                      trailing: Chip(
-                        label: Text(
-                          '${user['matchPercentage'] ?? '85'}% Match',
-                          style: const TextStyle(color: Colors.white),
-                        ),
-                        backgroundColor: Colors.green,
-                      ),
-                      onTap: () {
-                        _showUserDetails(context, user);
+                        );
                       },
                     ),
-                  );
-                },
-              ),
             ),
 
             // Action Buttons
             SizedBox(
               width: double.infinity,
               child: ElevatedButton(
-                onPressed:
-                    _startNavigation, // Use the corrected navigation method
+                onPressed: _startNavigation,
                 style: ElevatedButton.styleFrom(
                   backgroundColor: Colors.green,
                   padding: const EdgeInsets.symmetric(vertical: 16),
@@ -288,7 +255,11 @@ class _PairResultPageState extends State<PairResultPage> {
     );
   }
 
-  void _showUserDetails(BuildContext context, Map<String, dynamic> user) {
+  void _showUserDetails(BuildContext context, Map<String, dynamic> partner) {
+    final email = partner['email'] ?? 'Unknown';
+    final displayName = _getDisplayName(email);
+    final avatar = _getAvatarEmoji(email);
+
     showModalBottomSheet(
       context: context,
       builder: (context) {
@@ -302,68 +273,70 @@ class _PairResultPageState extends State<PairResultPage> {
                 child: CircleAvatar(
                   backgroundColor: Colors.blue.shade100,
                   radius: 40,
-                  child: Text(
-                    user['profileImage'] ?? '👤',
-                    style: const TextStyle(fontSize: 36),
-                  ),
+                  child: Text(avatar, style: const TextStyle(fontSize: 36)),
                 ),
               ),
               const SizedBox(height: 16),
               Center(
                 child: Text(
-                  user['name'] ?? 'Walking Partner',
+                  displayName,
                   style: const TextStyle(
                     fontSize: 20,
                     fontWeight: FontWeight.bold,
                   ),
                 ),
               ),
-              const SizedBox(height: 16),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                children: [
-                  _buildDetailChip(
-                    '⭐ ${user['rating'] ?? '4.5'}',
-                    Colors.amber,
-                  ),
-                  _buildDetailChip(
-                    '🚶 ${user['walkingSpeed'] ?? 'Moderate'}',
-                    Colors.blue,
-                  ),
-                  _buildDetailChip(
-                    '${user['matchPercentage'] ?? '85'}% Match',
-                    Colors.green,
-                  ),
-                ],
+              const SizedBox(height: 8),
+              Center(
+                child: Text(
+                  email,
+                  style: TextStyle(fontSize: 16, color: Colors.grey.shade600),
+                ),
               ),
-              const SizedBox(height: 20),
+              const SizedBox(height: 16),
+              const Divider(),
+              const SizedBox(height: 16),
               const Text(
-                'Interests:',
+                'Route Information:',
                 style: TextStyle(fontWeight: FontWeight.bold),
               ),
               const SizedBox(height: 8),
-              Wrap(
-                spacing: 8,
-                children:
-                    (user['interests'] as List<String>? ??
-                            ['Walking', 'Nature', 'Conversation'])
-                        .map(
-                          (interest) => Chip(
-                            label: Text(interest),
-                            backgroundColor: Colors.grey.shade200,
-                          ),
-                        )
-                        .toList(),
+              Row(
+                children: [
+                  const Icon(Icons.location_on, color: Colors.blue, size: 16),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      partner['currentLocation'] ?? 'Unknown location',
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 8),
+              Row(
+                children: [
+                  const Icon(Icons.flag, color: Colors.red, size: 16),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      partner['destination'] ?? 'Unknown destination',
+                    ),
+                  ),
+                ],
               ),
               const SizedBox(height: 20),
               SizedBox(
                 width: double.infinity,
                 child: ElevatedButton(
                   onPressed: () {
-                    // Navigate to ChatPage instead of popping
                     Navigator.push(
                       context,
-                      MaterialPageRoute(builder: (context) => const ChatPage()),
+                      MaterialPageRoute(
+                        builder: (context) => ChatPage(
+                          partner: partner, // pass the selected partner
+                          chatId: null, // or generate if needed
+                        ),
+                      ),
                     );
                   },
                   child: const Text('Start Chat'),
@@ -373,13 +346,6 @@ class _PairResultPageState extends State<PairResultPage> {
           ),
         );
       },
-    );
-  }
-
-  Widget _buildDetailChip(String label, Color color) {
-    return Chip(
-      label: Text(label, style: const TextStyle(color: Colors.white)),
-      backgroundColor: color,
     );
   }
 }
