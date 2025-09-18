@@ -3,7 +3,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import '../models/report_model.dart';
 import '../models/report_list_item.dart';
 
-class AllReportsListPage extends StatefulWidget {  //page to display all reports with tabs for different statuses and a search bar
+class AllReportsListPage extends StatefulWidget { //page to display all reports with search and filter functionality for staff
   const AllReportsListPage({super.key});
 
   @override
@@ -53,6 +53,7 @@ class _AllReportsListPageState extends State<AllReportsListPage>
       ),
       body: Column(
         children: [
+        
           Padding(
             padding: const EdgeInsets.all(12.0),
             child: TextField(

@@ -1,11 +1,9 @@
-// lib/widgets/report_list_item.dart
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import '../models/report_model.dart';
+import '../pages/report_detail_page.dart';
 
-import '../models/report_model.dart'; // ✅ 确保这里导入了 ReportStatusExtension 和 Report
-import '../pages/report_detail_page.dart'; // 导入 ReportDetailPage
-
-class ReportListItem extends StatelessWidget {
+class ReportListItem extends StatelessWidget { //staff view de report management page (recent report and all report list page li de report list )
   final Report report;
   const ReportListItem({super.key, required this.report});
 
@@ -27,14 +25,14 @@ class ReportListItem extends StatelessWidget {
     return Card(
       margin: const EdgeInsets.symmetric(vertical: 8.0),
       elevation: 2,
-      color: const Color(0xFFE6F2FA), // card background color
+      color: const Color(0xFFE6F2FA),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
       child: InkWell(
         onTap: () {
           Navigator.push(
             context,
             MaterialPageRoute(
-              builder: (_) => ReportDetailPage(report: report), // ✅ 直接传递 Report 对象
+              builder: (_) => ReportDetailPage(report: report),
             ),
           );
         },
@@ -47,23 +45,48 @@ class ReportListItem extends StatelessWidget {
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   Expanded(
-                    child: Text(
-                      report.title,
-                      style: const TextStyle(
-                          fontSize: 16, fontWeight: FontWeight.bold),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
+                   
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min, 
+                      children: [
+                        Flexible(
+                          child: Text(
+                            report.title,
+                            style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+
+                       if (report.isUrgent && report.status == ReportStatus.submitted)
+                          Padding(
+                            padding: const EdgeInsets.only(left: 8.0),
+                            child: Row(
+                              children: [
+                                Icon(Icons.local_fire_department, color: Colors.red.shade600, size: 16),
+                                const SizedBox(width: 4),
+                                Text(
+                                  "URGENT",
+                                  style: TextStyle(
+                                    color: Colors.red.shade700,
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 12,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                      ],
                     ),
                   ),
                   Container(
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                     decoration: BoxDecoration(
                       color: _getStatusColor(report.status),
                       borderRadius: BorderRadius.circular(20),
                     ),
                     child: Text(
-                      report.status.capitalize(), // 使用 capitalize() 方法
+                      report.status.capitalize(),
                       style: const TextStyle(color: Colors.white, fontSize: 12),
                     ),
                   ),
