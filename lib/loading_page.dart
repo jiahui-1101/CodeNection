@@ -1,6 +1,9 @@
 // loading_page.dart
 import 'package:flutter/material.dart';
 import 'dart:async';
+import 'package:firebase_core/firebase_core.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+
 
 class LoadingPage extends StatefulWidget {
   final String currentLocation;
@@ -89,57 +92,56 @@ class _LoadingPageState extends State<LoadingPage> with SingleTickerProviderStat
   }
 
   Future<void> _startMatching() async {
-    // Use Timer instead of Future.delayed for better control
-    _matchingTimer = Timer(const Duration(seconds: 5), () async {
-      if (!mounted) return;
-      
-      // Simulate matching result (75% chance of match for better UX)
-      final bool isMatched = DateTime.now().millisecond % 4 != 0;
-      
-      // Simulate matched partners data
-      List<Map<String, dynamic>> matchedPartners = [];
-      if (isMatched) {
-        matchedPartners = [
-          {
-            'name': 'Sarah Johnson',
-            'profileImage': '👩',
-            'rating': 4.8,
-            'walkingSpeed': 'Moderate',
-            'matchPercentage': 92,
-            'distance': '0.2 miles away',
-          },
-          {
-            'name': 'Michael Chen',
-            'profileImage': '👨',
-            'rating': 4.5,
-            'walkingSpeed': 'Brisk',
-            'matchPercentage': 85,
-            'distance': '0.5 miles away',
-          },
-        ];
-      }
+  _matchingTimer = Timer(const Duration(seconds: 5), () async {
+    if (!mounted) return;
 
-      if (mounted) {
-        setState(() {
-          _isMatching = false;
-          _progress = 100;
-        });
-        
-        // Stop the walking animation
-        _animationController.stop();
-      }
+    bool isMatched = false;
+    List<Map<String, dynamic>> matchedPartners = [];
 
-      // Wait a bit before returning result to show completion
-      await Future.delayed(const Duration(milliseconds: 800));
+    try {
+      // 🔹 Example: query Firestore for users near the same destination
+      final snapshot = await FirebaseFirestore.instance
+          .collection('users')
+          .where('destination', isEqualTo: widget.destination)
+          .get();
 
-      if (mounted) {
-        Navigator.of(context).pop({
-          'isMatched': isMatched,
-          'matchedPartners': matchedPartners,
-        });
+      if (snapshot.docs.isNotEmpty) {
+        isMatched = true;
+        matchedPartners = snapshot.docs.map((doc) {
+          final data = doc.data();
+          return {
+            'name': data['name'] ?? 'Unknown',
+            'profileImage': data['profileImage'] ?? '👤',
+            'rating': data['rating'] ?? 0,
+            'walkingSpeed': data['walkingSpeed'] ?? 'Unknown',
+            'matchPercentage': data['matchPercentage'] ?? 0,
+            'distance': data['distance'] ?? 'N/A',
+          };
+        }).toList();
       }
-    });
-  }
+    } catch (e) {
+      debugPrint("Error fetching partners: $e");
+    }
+
+    if (mounted) {
+      setState(() {
+        _isMatching = false;
+        _progress = 100;
+      });
+      _animationController.stop();
+    }
+
+    await Future.delayed(const Duration(milliseconds: 800));
+
+    if (mounted) {
+      Navigator.of(context).pop({
+        'isMatched': isMatched,
+        'matchedPartners': matchedPartners,
+      });
+    }
+  });
+}
+
 
   @override
   void dispose() {

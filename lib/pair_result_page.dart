@@ -15,6 +15,7 @@ class PairResultPage extends StatefulWidget {
     required this.destination,
     required this.matchedPartners,
     required this.onStartJourney,
+    
   });
 
   @override
@@ -24,7 +25,7 @@ class PairResultPage extends StatefulWidget {
 class _PairResultPageState extends State<PairResultPage> {
   // Generate mock data to display instead of null values
   List<Map<String, dynamic>> get displayPartners {
-    if (widget.matchedPartners.isEmpty || 
+    if (widget.matchedPartners.isEmpty ||
         widget.matchedPartners.any((partner) => partner['name'] == null)) {
       return [
         {
@@ -34,7 +35,7 @@ class _PairResultPageState extends State<PairResultPage> {
           'matchPercentage': 92,
           'profileImage': '👩',
           'distance': '0.2 miles away',
-          'interests': ['Music', 'Reading', 'Coffee']
+          'interests': ['Music', 'Reading', 'Coffee'],
         },
         {
           'name': 'Michael Chen',
@@ -43,7 +44,7 @@ class _PairResultPageState extends State<PairResultPage> {
           'matchPercentage': 85,
           'profileImage': '👨',
           'distance': '0.5 miles away',
-          'interests': ['Technology', 'Hiking', 'Photography']
+          'interests': ['Technology', 'Hiking', 'Photography'],
         },
         {
           'name': 'Emma Williams',
@@ -52,7 +53,7 @@ class _PairResultPageState extends State<PairResultPage> {
           'matchPercentage': 78,
           'profileImage': '👩',
           'distance': '0.3 miles away',
-          'interests': ['Art', 'Yoga', 'Travel']
+          'interests': ['Art', 'Yoga', 'Travel'],
         },
       ];
     }
@@ -60,30 +61,34 @@ class _PairResultPageState extends State<PairResultPage> {
   }
 
   String get displayCurrentLocation {
-    return widget.currentLocation.isEmpty 
-        ? '123 Main Street, Downtown' 
+    return widget.currentLocation.isEmpty
+        ? '123 Main Street, Downtown'
         : widget.currentLocation;
   }
 
   String get displayDestination {
-    return widget.destination.isEmpty 
-        ? 'Central Park, West Side' 
+    return widget.destination.isEmpty
+        ? 'Central Park, West Side'
         : widget.destination;
   }
 
   void _startNavigation() {
     // Call the original callback if needed
     widget.onStartJourney();
-    
-    // Navigate to NavigationPage instead of going back to the map
+
+    // Navigate to NavigationPage
     Navigator.pushReplacement(
       context,
       MaterialPageRoute(
         builder: (context) => NavigationPage(
           currentLocation: widget.currentLocation,
           destination: widget.destination,
+          destinationLatLng: null, // or pass real LatLng if available
           isWalkingTogether: true,
-          matchedPartners: widget.matchedPartners,
+          onStartJourney: () {
+            // Optional: handle when journey starts
+            debugPrint("Journey started from PairResultPage ✅");
+          },
         ),
       ),
     );
@@ -117,12 +122,19 @@ class _PairResultPageState extends State<PairResultPage> {
                   children: [
                     const Text(
                       'Your Route',
-                      style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                      ),
                     ),
                     const SizedBox(height: 10),
                     Row(
                       children: [
-                        const Icon(Icons.location_on, color: Colors.blue, size: 20),
+                        const Icon(
+                          Icons.location_on,
+                          color: Colors.blue,
+                          size: 20,
+                        ),
                         const SizedBox(width: 8),
                         Expanded(child: Text(displayCurrentLocation)),
                       ],
@@ -182,7 +194,11 @@ class _PairResultPageState extends State<PairResultPage> {
                           const SizedBox(height: 4),
                           Row(
                             children: [
-                              const Icon(Icons.star, color: Colors.amber, size: 16),
+                              const Icon(
+                                Icons.star,
+                                color: Colors.amber,
+                                size: 16,
+                              ),
                               const SizedBox(width: 4),
                               Text('${user['rating'] ?? '4.5'} Rating'),
                             ],
@@ -190,15 +206,25 @@ class _PairResultPageState extends State<PairResultPage> {
                           const SizedBox(height: 2),
                           Row(
                             children: [
-                              const Icon(Icons.directions_walk, color: Colors.blue, size: 16),
+                              const Icon(
+                                Icons.directions_walk,
+                                color: Colors.blue,
+                                size: 16,
+                              ),
                               const SizedBox(width: 4),
-                              Text('${user['walkingSpeed'] ?? 'Moderate'} Pace'),
+                              Text(
+                                '${user['walkingSpeed'] ?? 'Moderate'} Pace',
+                              ),
                             ],
                           ),
                           const SizedBox(height: 2),
                           Row(
                             children: [
-                              const Icon(Icons.location_pin, color: Colors.green, size: 16),
+                              const Icon(
+                                Icons.location_pin,
+                                color: Colors.green,
+                                size: 16,
+                              ),
                               const SizedBox(width: 4),
                               Text(user['distance'] ?? 'Nearby'),
                             ],
@@ -225,7 +251,8 @@ class _PairResultPageState extends State<PairResultPage> {
             SizedBox(
               width: double.infinity,
               child: ElevatedButton(
-                onPressed: _startNavigation, // Use the corrected navigation method
+                onPressed:
+                    _startNavigation, // Use the corrected navigation method
                 style: ElevatedButton.styleFrom(
                   backgroundColor: Colors.green,
                   padding: const EdgeInsets.symmetric(vertical: 16),
@@ -285,16 +312,28 @@ class _PairResultPageState extends State<PairResultPage> {
               Center(
                 child: Text(
                   user['name'] ?? 'Walking Partner',
-                  style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                  style: const TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                  ),
                 ),
               ),
               const SizedBox(height: 16),
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                 children: [
-                  _buildDetailChip('⭐ ${user['rating'] ?? '4.5'}', Colors.amber),
-                  _buildDetailChip('🚶 ${user['walkingSpeed'] ?? 'Moderate'}', Colors.blue),
-                  _buildDetailChip('${user['matchPercentage'] ?? '85'}% Match', Colors.green),
+                  _buildDetailChip(
+                    '⭐ ${user['rating'] ?? '4.5'}',
+                    Colors.amber,
+                  ),
+                  _buildDetailChip(
+                    '🚶 ${user['walkingSpeed'] ?? 'Moderate'}',
+                    Colors.blue,
+                  ),
+                  _buildDetailChip(
+                    '${user['matchPercentage'] ?? '85'}% Match',
+                    Colors.green,
+                  ),
                 ],
               ),
               const SizedBox(height: 20),
@@ -305,26 +344,30 @@ class _PairResultPageState extends State<PairResultPage> {
               const SizedBox(height: 8),
               Wrap(
                 spacing: 8,
-                children: (user['interests'] as List<String>? ?? ['Walking', 'Nature', 'Conversation'])
-                    .map((interest) => Chip(
-                          label: Text(interest),
-                          backgroundColor: Colors.grey.shade200,
-                        ))
-                    .toList(),
+                children:
+                    (user['interests'] as List<String>? ??
+                            ['Walking', 'Nature', 'Conversation'])
+                        .map(
+                          (interest) => Chip(
+                            label: Text(interest),
+                            backgroundColor: Colors.grey.shade200,
+                          ),
+                        )
+                        .toList(),
               ),
               const SizedBox(height: 20),
               SizedBox(
                 width: double.infinity,
                 child: ElevatedButton(
                   onPressed: () {
-    // Navigate to ChatPage instead of popping
+                    // Navigate to ChatPage instead of popping
                     Navigator.push(
                       context,
                       MaterialPageRoute(builder: (context) => const ChatPage()),
                     );
-                    },
+                  },
                   child: const Text('Start Chat'),
-                  ),
+                ),
               ),
             ],
           ),
@@ -335,10 +378,7 @@ class _PairResultPageState extends State<PairResultPage> {
 
   Widget _buildDetailChip(String label, Color color) {
     return Chip(
-      label: Text(
-        label,
-        style: const TextStyle(color: Colors.white),
-      ),
+      label: Text(label, style: const TextStyle(color: Colors.white)),
       backgroundColor: color,
     );
   }

@@ -47,6 +47,8 @@ dependencies:
   intl: ^0.18.1
   path: ^1.8.0
   shared_preferences: ^2.2.2
+  firebase_storage: ^13.0.1
+  path_provider: ^2.1.1
 
 dependency_overrides:
   http: ^0.13.6
@@ -63,6 +65,7 @@ flutter:
     - assets/images/
     - assets/music/alarm.mp3
     - assets/audio/
+    - assets/images/profile_placeholder.png
 
   fonts:
     - family: Grillin

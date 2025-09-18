@@ -73,21 +73,6 @@ class _EmergencyPageState extends State<EmergencyPage> {
                 },
               ),
             ),
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton.icon(
-                icon: const Icon(Icons.warning, size: 24),
-                label: const Text('SOS EMERGENCY', style: TextStyle(fontSize: 18)),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.red,
-                  foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(vertical: 16),
-                ),
-                onPressed: () {
-                  // Implement SOS emergency functionality
-                },
-              ),
-            ),
           ],
         ),
       ),

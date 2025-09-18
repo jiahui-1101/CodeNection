@@ -7,14 +7,14 @@
     <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" />
     <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" />
     <uses-permission android:name="android.permission.CALL_PHONE"/>
-
+    <uses-permission android:name="android.permission.READ_MEDIA_IMAGES" />
     <application
         android:label="hello_flutter"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher">
         <meta-data
             android:name="com.google.android.geo.API_KEY"
-            android:value="AIzaSyALfVigfIlFFmcVIEy-5OGos42GViiQe-M" />
+            android:value="AIzaSyDnsk3mlMQzujv8KmFf1auv6gVNJwkMhSg"/>
         <activity
             android:name=".MainActivity"
             android:exported="true"
