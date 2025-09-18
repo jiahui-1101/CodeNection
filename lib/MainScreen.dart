@@ -4,10 +4,10 @@ import 'package:hello_flutter/TopNavBar.dart';
 import 'package:hello_flutter/SmartSosButton.dart';
 import 'package:hello_flutter/HomePage.dart';
 import 'package:hello_flutter/MapPage.dart';
-import 'package:hello_flutter/ReportPage.dart';
+import '../pages/ReportPage.dart';
 import 'package:hello_flutter/AppDrawer.dart';
 
-class MainScreen extends StatefulWidget {             // 2. App的主屏幕 (MainScreen Widget)
+class MainScreen extends StatefulWidget {             // App的主屏幕 (MainScreen Widget)
   const MainScreen({super.key});
 
   @override

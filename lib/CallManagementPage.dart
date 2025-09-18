@@ -5,7 +5,7 @@ import 'ManagementTopBar.dart';
 import 'package:hello_flutter/ManagementAppDrawer.dart';
 import 'EmergencyPage.dart';
 import 'NewsUpdatePage.dart';
-import 'ReportUpdatePage.dart';
+import '../pages/report_management_page.dart';
 
 class CallManagementPage extends StatefulWidget {             // 2. App的主屏幕 (MainScreen Widget)
   const CallManagementPage({super.key});
@@ -21,7 +21,7 @@ class _CallManagementPageState extends State<CallManagementPage> {
   static final List<Widget> _pages = <Widget>[
     EmergencyPage(),
     NewsUpdatePage(),
-    ReportUpdatePage(),
+    ReportManagementPage(),
   ];
 
   void _onTopNavTapped(int index) {
