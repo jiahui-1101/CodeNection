@@ -1,4 +1,3 @@
-// lib/pages/report_detail_page.dart
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../models/report_model.dart';
@@ -21,7 +20,7 @@ class _ReportDetailPageState extends State<ReportDetailPage> {
   @override
   void initState() {
     super.initState();
-    _selectedStatus = widget.report.status; // ✅ 初始化一次即可
+    _selectedStatus = widget.report.status; 
     _feedbackController =
         TextEditingController(text: widget.report.feedback ?? '');
   }

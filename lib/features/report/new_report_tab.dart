@@ -1,11 +1,10 @@
-// lib/features/report/new_report_tab.dart
 import 'dart:io';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:path/path.dart' as path;
-import 'package:firebase_storage/firebase_storage.dart'; // ✅ 1. 导入 Firebase Storage
+import 'package:firebase_storage/firebase_storage.dart'; 
 import '../../../models/report_model.dart';
 
 class NewReportTab extends StatefulWidget {
@@ -26,7 +25,7 @@ class _NewReportTabState extends State<NewReportTab> {
   bool _isPickingAttachment = false;
   String? _selectedCategory;
   String? _selectedDepartment;
-  bool _isUploading = false; // ✅ 2. 新增状态来跟踪上传进度
+  bool _isUploading = false; 
 
   final Map<String, String> _categoryToDepartmentMap = {
     'Damage': 'Maintenance Department',
@@ -73,7 +72,6 @@ class _NewReportTabState extends State<NewReportTab> {
     }
   }
 
-  // ✅ 3. 重构整个 _submitReport 方法
   Future<void> _submitReport() async {
     if (!(_formKey.currentState?.validate() ?? false) || _isUploading) {
       return;
@@ -88,23 +86,20 @@ class _NewReportTabState extends State<NewReportTab> {
     }
 
     setState(() {
-      _isUploading = true; // 开始上传，显示加载动画
+      _isUploading = true;
     });
 
     try {
       String? attachmentUrl;
       String? attachmentFileName = _selectedAttachmentFileName;
 
-      // 如果用户选择了附件，就上传它
       if (_selectedAttachmentFile != null && attachmentFileName != null) {
-        // 创建一个独一无二的文件路径，避免重名
         final String filePath = 'report_attachments/$_currentUserId/${DateTime.now().millisecondsSinceEpoch}_$attachmentFileName';
         final ref = FirebaseStorage.instance.ref().child(filePath);
         final uploadTask = ref.putFile(_selectedAttachmentFile!);
-        
-        // 等待上传完成
+
         final snapshot = await uploadTask.whenComplete(() {});
-        // 获取下载链接
+        
         attachmentUrl = await snapshot.ref.getDownloadURL();
       }
 
@@ -119,8 +114,8 @@ class _NewReportTabState extends State<NewReportTab> {
         department: _selectedDepartment!,
         description: _descriptionController.text.trim(),
         contact: _contactController.text.trim().isEmpty ? null : _contactController.text.trim(),
-        attachmentUrl: attachmentUrl, // 使用上传后获取到的 URL
-        attachmentFileName: attachmentFileName, // 使用原始文件名
+        attachmentUrl: attachmentUrl, 
+        attachmentFileName: attachmentFileName, 
         timestamp: now,
         lastUpdateTimestamp: now,
         status: ReportStatus.submitted,
@@ -154,7 +149,7 @@ class _NewReportTabState extends State<NewReportTab> {
     } finally {
       if (mounted) {
         setState(() {
-          _isUploading = false; // 无论成功或失败，都结束加载状态
+          _isUploading = false; 
         });
       }
     }
@@ -206,7 +201,6 @@ class _NewReportTabState extends State<NewReportTab> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            // ... (其他 TextFormField 保持不变)
             _buildSectionTitle("Report Details"),
             const SizedBox(height: 16),
             TextFormField(
@@ -272,11 +266,9 @@ class _NewReportTabState extends State<NewReportTab> {
               ),
             ),
             const SizedBox(height: 24),
-
-            // ✅ 4. 更新提交按钮，以反映上传状态
             ElevatedButton.icon(
-              onPressed: _isUploading ? null : _submitReport, // 上传时禁用按钮
-              icon: _isUploading ? Container() : const Icon(Icons.send), // 上传时不显示图标
+              onPressed: _isUploading ? null : _submitReport, 
+              icon: _isUploading ? Container() : const Icon(Icons.send), 
               label: _isUploading
                   ? const SizedBox(
                       height: 24,

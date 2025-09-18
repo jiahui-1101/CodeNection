@@ -7,7 +7,7 @@ import 'package:hello_flutter/MapPage.dart';
 import '../pages/ReportPage.dart';
 import 'package:hello_flutter/AppDrawer.dart';
 
-class MainScreen extends StatefulWidget {             // App的主屏幕 (MainScreen Widget)
+class MainScreen extends StatefulWidget {             // App(MainScreen Widget) user view
   const MainScreen({super.key});
 
   @override

@@ -7,7 +7,7 @@ import 'EmergencyPage.dart';
 import 'NewsUpdatePage.dart';
 import '../pages/report_management_page.dart';
 
-class CallManagementPage extends StatefulWidget {             // 2. App的主屏幕 (MainScreen Widget)
+class CallManagementPage extends StatefulWidget {             // App (MainScreen Widget , staff view)
   const CallManagementPage({super.key});
 
   @override
