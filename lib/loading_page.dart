@@ -1,9 +1,8 @@
 // loading_page.dart
 import 'package:flutter/material.dart';
 import 'dart:async';
-import 'package:firebase_core/firebase_core.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-
 
 class LoadingPage extends StatefulWidget {
   final String currentLocation;
@@ -19,8 +18,10 @@ class LoadingPage extends StatefulWidget {
   State<LoadingPage> createState() => _LoadingPageState();
 }
 
-class _LoadingPageState extends State<LoadingPage> with SingleTickerProviderStateMixin {
+class _LoadingPageState extends State<LoadingPage>
+    with SingleTickerProviderStateMixin {
   bool _isMatching = true;
+  bool _matchSuccess = false;
   int _progress = 0;
   final List<String> _searchingMessages = [
     "Searching nearby users...",
@@ -30,47 +31,87 @@ class _LoadingPageState extends State<LoadingPage> with SingleTickerProviderStat
     "Almost there..."
   ];
   int _currentMessageIndex = 0;
-  
-  // Timer variables
+  String? _errorMessage;
+
   Timer? _progressTimer;
   Timer? _messageTimer;
   Timer? _matchingTimer;
-  
-  // Animation controller
+
   late AnimationController _animationController;
   late Animation<double> _walkingAnimation;
+
+  String? _currentUserDocId;
+  final FirebaseAuth _auth = FirebaseAuth.instance;
+  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
   @override
   void initState() {
     super.initState();
-    
-    // Initialize animation controller
+
     _animationController = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 1000),
     );
-    
-    // Create walking animation
+
     _walkingAnimation = Tween<double>(begin: 0, end: 1).animate(
       CurvedAnimation(
         parent: _animationController,
         curve: Curves.easeInOut,
       ),
     );
-    
-    // Start animations and timers
-    _startMatching();
-    _startProgressAnimation();
-    _startMessageRotation();
-    _animationController.repeat(reverse: true);
+
+    _initializeMatchingProcess();
+  }
+
+  Future<void> _initializeMatchingProcess() async {
+    try {
+      await _saveUserToFirestore();
+      _startMatching();
+      _startProgressAnimation();
+      _startMessageRotation();
+      _animationController.repeat(reverse: true);
+    } catch (e) {
+      setState(() {
+        _errorMessage = "Failed to start matching process";
+        _isMatching = false;
+        _matchSuccess = false;
+      });
+      _animationController.stop();
+    }
+  }
+
+  /// 🔹 Save current user search info into Firestore
+  Future<void> _saveUserToFirestore() async {
+    try {
+      final user = _auth.currentUser;
+
+      if (user == null) {
+        throw Exception("No user logged in");
+      }
+
+      final docRef = await _firestore.collection('users').add({
+        "uid": user.uid,
+        "email": user.email,
+        "destination": widget.destination,
+        "currentLocation": widget.currentLocation,
+        "createdAt": FieldValue.serverTimestamp(),
+      });
+
+      _currentUserDocId = docRef.id;
+      debugPrint("✅ User saved with id ${docRef.id}");
+    } catch (e) {
+      debugPrint("❌ Error saving user: $e");
+      rethrow;
+    }
   }
 
   void _startProgressAnimation() {
+    // Adjust timing to match 5-second matching process
     const duration = Duration(milliseconds: 50);
     _progressTimer = Timer.periodic(duration, (timer) {
       if (_progress < 100) {
         setState(() {
-          _progress += 2;
+          _progress += 1; // Reduced increment to match 5-second timeframe
         });
       } else {
         timer.cancel();
@@ -83,7 +124,8 @@ class _LoadingPageState extends State<LoadingPage> with SingleTickerProviderStat
     _messageTimer = Timer.periodic(duration, (timer) {
       if (_isMatching && mounted) {
         setState(() {
-          _currentMessageIndex = (_currentMessageIndex + 1) % _searchingMessages.length;
+          _currentMessageIndex =
+              (_currentMessageIndex + 1) % _searchingMessages.length;
         });
       } else {
         timer.cancel();
@@ -92,67 +134,88 @@ class _LoadingPageState extends State<LoadingPage> with SingleTickerProviderStat
   }
 
   Future<void> _startMatching() async {
-  _matchingTimer = Timer(const Duration(seconds: 5), () async {
-    if (!mounted) return;
+    _matchingTimer = Timer(const Duration(seconds: 5), () async {
+      if (!mounted) return;
 
-    bool isMatched = false;
-    List<Map<String, dynamic>> matchedPartners = [];
+      bool isMatched = false;
+      List<Map<String, dynamic>> matchedPartners = [];
 
-    try {
-      // 🔹 Example: query Firestore for users near the same destination
-      final snapshot = await FirebaseFirestore.instance
-          .collection('users')
-          .where('destination', isEqualTo: widget.destination)
-          .get();
+      try {
+        final currentUser = _auth.currentUser;
+        if (currentUser == null) return;
 
-      if (snapshot.docs.isNotEmpty) {
-        isMatched = true;
-        matchedPartners = snapshot.docs.map((doc) {
-          final data = doc.data();
-          return {
-            'name': data['name'] ?? 'Unknown',
-            'profileImage': data['profileImage'] ?? '👤',
-            'rating': data['rating'] ?? 0,
-            'walkingSpeed': data['walkingSpeed'] ?? 'Unknown',
-            'matchPercentage': data['matchPercentage'] ?? 0,
-            'distance': data['distance'] ?? 'N/A',
-          };
-        }).toList();
+        final snapshot = await _firestore
+            .collection('users')
+            .where('destination', isEqualTo: widget.destination)
+            .get();
+
+        // Filter out the current user locally
+        final filteredDocs = snapshot.docs.where((doc) => 
+            doc['uid'] != currentUser.uid).toList();
+
+        if (filteredDocs.isNotEmpty) {
+          isMatched = true;
+          matchedPartners = filteredDocs.map((doc) {
+            final data = doc.data();
+            return {
+              'uid': data['uid'] ?? '',
+              'email': data['email'] ?? '',
+              'destination': data['destination'] ?? '',
+              'currentLocation': data['currentLocation'] ?? '',
+            };
+          }).toList();
+        }
+      } catch (e) {
+        debugPrint("❌ Error fetching partners: $e");
+        if (mounted) {
+          setState(() {
+            _errorMessage = "Failed to find matches";
+          });
+        }
       }
-    } catch (e) {
-      debugPrint("Error fetching partners: $e");
+
+      if (mounted) {
+        setState(() {
+          _isMatching = false;
+          _matchSuccess = isMatched;
+          _progress = 100;
+        });
+        _animationController.stop();
+      }
+
+      // If matched, navigate immediately
+      if (isMatched) {
+        await Future.delayed(const Duration(milliseconds: 800));
+        if (mounted) {
+          Navigator.of(context).pop({
+            'isMatched': isMatched,
+            'matchedPartners': matchedPartners,
+            'error': _errorMessage,
+          });
+        }
+      }
+      // If not matched, we'll show the failure UI and let the user decide next steps
+    });
+  }
+
+  Future<void> _cleanupUserDocument() async {
+    if (_currentUserDocId != null) {
+      try {
+        await _firestore.collection('users').doc(_currentUserDocId).delete();
+        debugPrint("✅ User document cleaned up");
+      } catch (e) {
+        debugPrint("❌ Error cleaning up user document: $e");
+      }
     }
-
-    if (mounted) {
-      setState(() {
-        _isMatching = false;
-        _progress = 100;
-      });
-      _animationController.stop();
-    }
-
-    await Future.delayed(const Duration(milliseconds: 800));
-
-    if (mounted) {
-      Navigator.of(context).pop({
-        'isMatched': isMatched,
-        'matchedPartners': matchedPartners,
-      });
-    }
-  });
-}
-
+  }
 
   @override
   void dispose() {
-    // Cancel all timers
     _progressTimer?.cancel();
     _messageTimer?.cancel();
     _matchingTimer?.cancel();
-    
-    // Dispose animation controller
     _animationController.dispose();
-    
+    _cleanupUserDocument();
     super.dispose();
   }
 
@@ -177,31 +240,17 @@ class _LoadingPageState extends State<LoadingPage> with SingleTickerProviderStat
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                // Animated walking icon
-                _buildWalkingAnimation(),
-                
+                if (_isMatching) _buildWalkingAnimation(),
+                if (!_isMatching && _matchSuccess) _buildSuccessUI(),
+                if (!_isMatching && !_matchSuccess) _buildFailureUI(),
                 const SizedBox(height: 40),
-                
-                // Progress indicator
-                _buildProgressIndicator(),
-                
+                if (_isMatching) _buildProgressIndicator(),
                 const SizedBox(height: 30),
-                
-                // Searching message
-                _buildSearchingMessage(),
-                
+                if (_isMatching) _buildSearchingMessage(),
                 const SizedBox(height: 20),
-                
-                // Route info
-                _buildRouteInfo(),
-                
+                if (_isMatching) _buildRouteInfo(),
                 const SizedBox(height: 30),
-                
-                // Cancel button
                 if (_isMatching) _buildCancelButton(),
-                
-                // Result indicator (when matching is complete)
-                if (!_isMatching) _buildResultIndicator(),
               ],
             ),
           ),
@@ -306,9 +355,9 @@ class _LoadingPageState extends State<LoadingPage> with SingleTickerProviderStat
     return AnimatedSwitcher(
       duration: const Duration(milliseconds: 500),
       child: Text(
-        _isMatching 
-          ? _searchingMessages[_currentMessageIndex]
-          : "Match found! Preparing your route...",
+        _isMatching
+            ? _searchingMessages[_currentMessageIndex]
+            : "Match found! Preparing your route...",
         key: ValueKey(_currentMessageIndex + (_isMatching ? 0 : 1000)),
         textAlign: TextAlign.center,
         style: TextStyle(
@@ -368,13 +417,18 @@ class _LoadingPageState extends State<LoadingPage> with SingleTickerProviderStat
   Widget _buildCancelButton() {
     return TextButton(
       onPressed: () {
-        // Cancel all timers and animations
         _progressTimer?.cancel();
         _messageTimer?.cancel();
         _matchingTimer?.cancel();
         _animationController.stop();
-        
-        // Return to previous screen with no match
+
+        if (_currentUserDocId != null) {
+          FirebaseFirestore.instance
+              .collection('users')
+              .doc(_currentUserDocId)
+              .delete();
+        }
+
         Navigator.pop(context, {
           'isMatched': false,
           'matchedPartners': [],
@@ -391,15 +445,328 @@ class _LoadingPageState extends State<LoadingPage> with SingleTickerProviderStat
     );
   }
 
-  Widget _buildResultIndicator() {
-    return const Column(
+  Widget _buildSuccessUI() {
+    return Column(
       children: [
-        SizedBox(height: 10),
-        CircularProgressIndicator(
-          valueColor: AlwaysStoppedAnimation(Colors.green),
-          strokeWidth: 2,
+        Container(
+          width: 120,
+          height: 120,
+          decoration: BoxDecoration(
+            color: Colors.green.shade50,
+            shape: BoxShape.circle,
+            boxShadow: [
+              BoxShadow(
+                color: Colors.green.shade100,
+                blurRadius: 15,
+                spreadRadius: 2,
+              ),
+            ],
+          ),
+          child: Icon(
+            Icons.check_circle,
+            size: 50,
+            color: Colors.green.shade600,
+          ),
+        ),
+        const SizedBox(height: 20),
+        Text(
+          "Match Found!",
+          style: TextStyle(
+            fontSize: 22,
+            fontWeight: FontWeight.bold,
+            color: Colors.green.shade700,
+          ),
         ),
       ],
     );
   }
+
+  Widget _buildFailureUI() {
+    return Container(
+      padding: const EdgeInsets.all(24),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.1),
+            blurRadius: 20,
+            offset: const Offset(0, 10),
+          ),
+        ],
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          // Icon
+          Container(
+            width: 120,
+            height: 120,
+            decoration: BoxDecoration(
+              color: Colors.orange.shade50,
+              shape: BoxShape.circle,
+            ),
+            child: Icon(
+              Icons.directions_walk,
+              size: 50,
+              color: Colors.orange.shade600,
+            ),
+          ),
+          const SizedBox(height: 20),
+          
+          // Title
+          Text(
+            'No Partners Available',
+            style: TextStyle(
+              fontSize: 22,
+              fontWeight: FontWeight.w700,
+              color: Colors.grey[800],
+            ),
+          ),
+          const SizedBox(height: 12),
+          
+          // Description
+          Text(
+            'No one else is heading to your destination right now. You\'ll need to walk alone this time.',
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              fontSize: 16,
+              color: Colors.grey[600],
+              height: 1.5,
+            ),
+          ),
+          const SizedBox(height: 30),
+          
+          // Single action button
+          SizedBox(
+            width: double.infinity,
+            child: ElevatedButton(
+              onPressed: () {
+                Navigator.of(context).pop({
+                  'isMatched': false,
+                  'matchedPartners': [],
+                });
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.blue,
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(vertical: 16),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                elevation: 3,
+              ),
+              child: const Text(
+                'Continue Alone',
+                style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 }
+
+//demo
+
+// demo_loading_page.dart
+// import 'package:flutter/material.dart';
+// import 'pair_result_page.dart';
+
+// class LoadingPage extends StatefulWidget {
+//   final String currentLocation;
+//   final String destination;
+
+//   const LoadingPage({
+//     super.key,
+//     required this.currentLocation,
+//     required this.destination,
+//   });
+
+//   @override
+//   State<LoadingPage> createState() => _LoadingPageState();
+// }
+
+// class _LoadingPageState extends State<LoadingPage> {
+//   int _selectedScenario = 0;
+//   final List<String> _scenarios = [
+//     "No matches found",
+//     "Single match found",
+//     "Multiple matches found",
+//     "Error scenario"
+//   ];
+
+//   final List<Map<String, dynamic>> _demoPartners = [
+//     {
+//       'uid': 'demo_uid_1',
+//       'email': 'jane.smith@example.com',
+//       'destination': 'Central Park',
+//       'currentLocation': 'Times Square',
+//     },
+//     {
+//       'uid': 'demo_uid_2',
+//       'email': 'john.doe@example.com',
+//       'destination': 'Central Park',
+//       'currentLocation': 'Empire State Building',
+//     },
+//     {
+//       'uid': 'demo_uid_3',
+//       'email': 'sarah.williams@example.com',
+//       'destination': 'Central Park',
+//       'currentLocation': 'Rockefeller Center',
+//     }
+//   ];
+
+//   void _navigateToResult() {
+//     List<Map<String, dynamic>> matchedPartners = [];
+
+//     switch (_selectedScenario) {
+//       case 0: // No matches
+//         matchedPartners = [];
+//         break;
+//       case 1: // Single match
+//         matchedPartners = [_demoPartners[0]];
+//         break;
+//       case 2: // Multiple matches
+//         matchedPartners = _demoPartners;
+//         break;
+//       case 3: // Error - use invalid data
+//         matchedPartners = [
+//           {'email': 'error@example.com'} // Minimal data to cause potential issues
+//         ];
+//         break;
+//     }
+
+//     Navigator.pushReplacement(
+//       context,
+//       MaterialPageRoute(
+//         builder: (context) => PairResultPage(
+//           currentLocation: widget.currentLocation,
+//           destination: widget.destination,
+//           matchedPartners: matchedPartners,
+//           onStartJourney: () {
+//             debugPrint("Demo journey started");
+//           },
+//         ),
+//       ),
+//     );
+//   }
+
+//   @override
+//   Widget build(BuildContext context) {
+//     return Scaffold(
+//       appBar: AppBar(
+//         title: const Text('Demo Mode - Test Scenarios'),
+//         backgroundColor: Colors.purple,
+//       ),
+//       body: Padding(
+//         padding: const EdgeInsets.all(20.0),
+//         child: Column(
+//           crossAxisAlignment: CrossAxisAlignment.start,
+//           children: [
+//             // Route info
+//             Card(
+//               elevation: 4,
+//               child: Padding(
+//                 padding: const EdgeInsets.all(16.0),
+//                 child: Column(
+//                   crossAxisAlignment: CrossAxisAlignment.start,
+//                   children: [
+//                     const Text(
+//                       'Your Route',
+//                       style: TextStyle(
+//                         fontSize: 18,
+//                         fontWeight: FontWeight.bold,
+//                       ),
+//                     ),
+//                     const SizedBox(height: 12),
+//                     _buildLocationRow(Icons.location_on, Colors.blue, widget.currentLocation),
+//                     const SizedBox(height: 8),
+//                     const Divider(height: 1),
+//                     const SizedBox(height: 8),
+//                     _buildLocationRow(Icons.flag, Colors.red, widget.destination),
+//                   ],
+//                 ),
+//               ),
+//             ),
+            
+//             const SizedBox(height: 30),
+            
+//             // Scenario selection
+//             const Text(
+//               'Select Test Scenario:',
+//               style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+//             ),
+//             const SizedBox(height: 15),
+            
+//             Expanded(
+//               child: ListView.builder(
+//                 itemCount: _scenarios.length,
+//                 itemBuilder: (context, index) {
+//                   return Card(
+//                     margin: const EdgeInsets.only(bottom: 12),
+//                     color: _selectedScenario == index 
+//                         ? Colors.purple.withOpacity(0.1) 
+//                         : null,
+//                     child: ListTile(
+//                       title: Text(_scenarios[index]),
+//                       leading: Radio<int>(
+//                         value: index,
+//                         groupValue: _selectedScenario,
+//                         onChanged: (value) {
+//                           setState(() {
+//                             _selectedScenario = value!;
+//                           });
+//                         },
+//                       ),
+//                       onTap: () {
+//                         setState(() {
+//                           _selectedScenario = index;
+//                         });
+//                       },
+//                     ),
+//                   );
+//                 },
+//               ),
+//             ),
+            
+//             // Action button
+//             SizedBox(
+//               width: double.infinity,
+//               child: ElevatedButton(
+//                 onPressed: _navigateToResult,
+//                 style: ElevatedButton.styleFrom(
+//                   backgroundColor: Colors.purple,
+//                   padding: const EdgeInsets.symmetric(vertical: 16),
+//                   shape: RoundedRectangleBorder(
+//                     borderRadius: BorderRadius.circular(12),
+//                   ),
+//                 ),
+//                 child: const Text(
+//                   'Test This Scenario',
+//                   style: TextStyle(fontSize: 16, color: Colors.white),
+//                 ),
+//               ),
+//             ),
+//           ],
+//         ),
+//       ),
+//     );
+//   }
+
+//   Widget _buildLocationRow(IconData icon, Color color, String text) {
+//     return Row(
+//       children: [
+//         Icon(icon, color: color, size: 20),
+//         const SizedBox(width: 12),
+//         Expanded(
+//           child: Text(
+//             text,
+//             style: const TextStyle(fontSize: 16),
+//           ),
+//         ),
+//       ],
+//     );
+//   }
+// }

@@ -150,49 +150,37 @@ class _AnimatedUtmBrightTitleState extends State<AnimatedUtmBrightTitle>
   late AnimationController _controller;
   late Animation<double> _scaleAnimation;
   late Animation<double> _opacityAnimation;
+late Animation<Offset> _slideAnimation;
 
-  @override
-  void initState() {
-    super.initState();
-    
-    _controller = AnimationController(
-      duration: const Duration(milliseconds: 1200),
-      vsync: this,
-    );
-    
-    _scaleAnimation = TweenSequence<double>(
-      [
-        TweenSequenceItem(tween: Tween(begin: 0.0, end: 1.1), weight: 0.5),
-        TweenSequenceItem(tween: Tween(begin: 1.1, end: 1.0), weight: 0.5),
-      ],
-    ).animate(
-      CurvedAnimation(parent: _controller, curve: Curves.easeOutBack)
-    );
-    
-    _opacityAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
-      CurvedAnimation(
-        parent: _controller,
-        curve: const Interval(0.3, 1.0, curve: Curves.easeIn),
-      ),
-    );
-    
-    _controller.forward();
-  }
+@override
+void initState() {
+  super.initState();
 
-  @override
-  void dispose() {
-    _controller.dispose();
-    super.dispose();
-  }
+  _controller = AnimationController(
+    duration: const Duration(milliseconds: 1500),
+    vsync: this,
+  );
 
-  @override
-  Widget build(BuildContext context) {
-    return ScaleTransition(
-      scale: _scaleAnimation,
-      child: FadeTransition(
-        opacity: _opacityAnimation,
-        child: const StaticUtmBrightTitle(),
-      ),
-    );
-  }
+  _slideAnimation = Tween<Offset>(
+    begin: const Offset(0, 1), // from below
+    end: Offset.zero,
+  ).animate(CurvedAnimation(parent: _controller, curve: Curves.easeOut));
+
+  _opacityAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
+    CurvedAnimation(parent: _controller, curve: Curves.easeIn),
+  );
+
+  _controller.forward();
+}
+
+@override
+Widget build(BuildContext context) {
+  return SlideTransition(
+    position: _slideAnimation,
+    child: FadeTransition(
+      opacity: _opacityAnimation,
+      child: const StaticUtmBrightTitle(),
+    ),
+  );
+}
 }
