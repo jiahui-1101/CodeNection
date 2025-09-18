@@ -4,7 +4,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:image_picker/image_picker.dart';
-import 'LoginPage.dart';
+import 'LoginPage.dart'; 
 
 class SettingsPage extends StatefulWidget {
   const SettingsPage({super.key});
