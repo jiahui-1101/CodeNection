@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'features/sos_alert/guard_page.dart';
 
 class EmergencyPage extends StatefulWidget {
   const EmergencyPage({super.key});
@@ -73,9 +74,45 @@ class _EmergencyPageState extends State<EmergencyPage> {
                 },
               ),
             ),
+      /*    ],
+        ),
+      ),
+    );
+  }
+} */
+
+           const SizedBox(height: 16),
+
+            // 🚨 SOS Emergency Alert Button
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton.icon(
+                icon: const Icon(Icons.warning, color: Colors.white, size: 28),
+                label: const Text(
+                  "SOS Emergency Alert",
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                ),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.red.shade700,
+                  padding: const EdgeInsets.symmetric(vertical: 16),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                ),
+                onPressed: () {
+                  // ⬅️ 跳转到 GuardPage
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => const GuardPage(guardId: "guard_001"),
+                    ),
+                  );
+                },
+              ),
+            ),
           ],
         ),
       ),
     );
   }
-}
+} 

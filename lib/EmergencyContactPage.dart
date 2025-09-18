@@ -602,8 +602,8 @@ class _EmergencyContactPageState extends State<EmergencyContactPage> {
       floatingActionButton: FloatingActionButton(
         onPressed: _addContact,
         backgroundColor: Colors.blue[700],
-        child: const Icon(Icons.add, color: Colors.white, size: 28),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        child: const Icon(Icons.add, color: Colors.white, size: 28),
       ),
     );
   }

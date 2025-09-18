@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:hello_flutter/ManagementTopBar.dart';
 import 'package:hello_flutter/title.dart';
-import 'ManagementTopBar.dart';
 import 'package:hello_flutter/ManagementAppDrawer.dart';
 import 'EmergencyPage.dart';
 import 'NewsUpdatePage.dart';

@@ -120,7 +120,7 @@ class _AllReportsListPageState extends State<AllReportsListPage>
                 final titleMatch =
                     report.title.toLowerCase().contains(_searchKeyword);
                 final descMatch =
-                    report.description?.toLowerCase().contains(_searchKeyword) ??
+                    report.description.toLowerCase().contains(_searchKeyword) ??
                         false;
                 return titleMatch || descMatch;
               }).toList();
