@@ -52,7 +52,8 @@ dependencies:
   lottie: ^2.0.0
   location: ^7.0.0
   record: ^6.1.1
-  rxdart: ^0.27.7 
+  rxdart: ^0.27.7
+  flutter_compass: ^0.8.0
 
 
 dependency_overrides:

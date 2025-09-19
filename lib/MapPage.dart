@@ -6,6 +6,7 @@ import 'LocationSelectionPage.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
+import 'package:geolocator/geolocator.dart';
 
 class MapPage extends StatefulWidget {
   const MapPage({super.key});
@@ -18,6 +19,7 @@ class _MapPageState extends State<MapPage> {
   String? currentLocation;
   String? destination;
   bool journeyStarted = false;
+  Position? currentPosition;
 
   GoogleMapController? _mapController;
   LatLng? sourceLatLng;
@@ -27,6 +29,42 @@ class _MapPageState extends State<MapPage> {
 
   // ✅ Use same key as NavigationPage
   final String serverApiKey = "AIzaSyD8v9hGJLHwma7zYUFhpW4WVbNlehYhpGk";
+  @override
+  void initState() {
+    super.initState();
+    _getCurrentLocation(); // Add this line
+  }
+
+  // Add this method to get current location
+  Future<void> _getCurrentLocation() async {
+    try {
+      // Check permission
+      LocationPermission permission = await Geolocator.checkPermission();
+      if (permission == LocationPermission.denied) {
+        permission = await Geolocator.requestPermission();
+        if (permission == LocationPermission.denied) {
+          // Handle denied permission
+          return;
+        }
+      }
+
+      if (permission == LocationPermission.deniedForever) {
+        // Handle permanently denied permission
+        return;
+      }
+
+      // Get current position
+      Position position = await Geolocator.getCurrentPosition(
+        desiredAccuracy: LocationAccuracy.high,
+      );
+
+      setState(() {
+        currentPosition = position;
+      });
+    } catch (e) {
+      print("Error getting location: $e");
+    }
+  }
 
   @override
   void dispose() {
@@ -211,12 +249,26 @@ class _MapPageState extends State<MapPage> {
   void _startMatching() async {
     if (currentLocation == null || destination == null) return;
 
+    // Ensure we have current position
+    if (currentPosition == null) {
+      await _getCurrentLocation();
+    }
+
+    if (currentPosition == null) {
+      // Show error if we still can't get position
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Cannot get current location")),
+      );
+      return;
+    }
+
     final result = await Navigator.push(
       context,
       MaterialPageRoute(
         builder: (_) => LoadingPage(
           currentLocation: currentLocation!,
           destination: destination!,
+          currentPosition: currentPosition!, // Now this should work
         ),
       ),
     );
