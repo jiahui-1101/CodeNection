@@ -32,6 +32,13 @@ class _PairResultPageState extends State<PairResultPage> {
     _currentUserId = _auth.currentUser?.uid;
   }
 
+  /// ✅ Generate a consistent chatId for two users
+  String _generateChatId(String partnerId) {
+    final currentId = _currentUserId ?? '';
+    final ids = [currentId, partnerId]..sort();
+    return ids.join('_');
+  }
+
   String _getAvatarEmoji(String email) {
     // Simple emoji based on email hash for consistency
     final hash = email.hashCode;
@@ -255,7 +262,7 @@ class _PairResultPageState extends State<PairResultPage> {
   }
 
   void _showUserDetails(BuildContext context, Map<String, dynamic> partner) {
-    final email = partner['email'] ?? 'Unknown';
+    final email = (partner['email'] as String?) ?? 'Unknown';
     final displayName = _getDisplayName(email);
     final avatar = _getAvatarEmoji(email);
 
@@ -328,13 +335,21 @@ class _PairResultPageState extends State<PairResultPage> {
                 width: double.infinity,
                 child: ElevatedButton(
                   onPressed: () {
+                    final partnerId = (partner['uid'] as String?) ?? 'unknown';
+
+                    // Generate chat ID exactly like in ChatPage
+                    final List<String> userIds = [
+                      FirebaseAuth.instance.currentUser!.uid,
+                      partnerId,
+                    ];
+                    userIds.sort();
+                    final chatId = 'chat_${userIds.join("_")}';
+
                     Navigator.push(
                       context,
                       MaterialPageRoute(
-                        builder: (context) => ChatPage(
-                          partner: partner, // pass the selected partner
-                          chatId: null, // or generate if needed
-                        ),
+                        builder: (context) =>
+                            ChatPage(partner: partner, chatId: chatId),
                       ),
                     );
                   },

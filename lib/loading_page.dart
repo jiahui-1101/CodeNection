@@ -3,15 +3,18 @@ import 'package:flutter/material.dart';
 import 'dart:async';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:geolocator/geolocator.dart';
 
 class LoadingPage extends StatefulWidget {
   final String currentLocation;
   final String destination;
+  final Position currentPosition;
 
   const LoadingPage({
     super.key,
     required this.currentLocation,
     required this.destination,
+    required this.currentPosition,
   });
 
   @override
@@ -22,13 +25,13 @@ class _LoadingPageState extends State<LoadingPage>
     with SingleTickerProviderStateMixin {
   bool _isMatching = true;
   bool _matchSuccess = false;
-  int _progress = 0;
+  double _progress = 0;
   final List<String> _searchingMessages = [
     "Searching nearby users...",
     "Analyzing walking routes...",
     "Matching similar destinations...",
     "Finding compatible walking partners...",
-    "Almost there..."
+    "Almost there...",
   ];
   int _currentMessageIndex = 0;
   String? _errorMessage;
@@ -44,6 +47,9 @@ class _LoadingPageState extends State<LoadingPage>
   final FirebaseAuth _auth = FirebaseAuth.instance;
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
+  // Track start time for accurate progress calculation
+  DateTime? _startTime;
+
   @override
   void initState() {
     super.initState();
@@ -54,10 +60,7 @@ class _LoadingPageState extends State<LoadingPage>
     );
 
     _walkingAnimation = Tween<double>(begin: 0, end: 1).animate(
-      CurvedAnimation(
-        parent: _animationController,
-        curve: Curves.easeInOut,
-      ),
+      CurvedAnimation(parent: _animationController, curve: Curves.easeInOut),
     );
 
     _initializeMatchingProcess();
@@ -72,7 +75,7 @@ class _LoadingPageState extends State<LoadingPage>
       _animationController.repeat(reverse: true);
     } catch (e) {
       setState(() {
-        _errorMessage = "Failed to start matching process";
+        _errorMessage = "Failed to start matching process: $e";
         _isMatching = false;
         _matchSuccess = false;
       });
@@ -80,7 +83,7 @@ class _LoadingPageState extends State<LoadingPage>
     }
   }
 
-  /// 🔹 Save current user search info into Firestore
+  /// 🔹 Save current user search info into Firestore with status field
   Future<void> _saveUserToFirestore() async {
     try {
       final user = _auth.currentUser;
@@ -94,6 +97,9 @@ class _LoadingPageState extends State<LoadingPage>
         "email": user.email,
         "destination": widget.destination,
         "currentLocation": widget.currentLocation,
+        "latitude": widget.currentPosition.latitude,
+        "longitude": widget.currentPosition.longitude,
+        "status": "searching", // Add status field
         "createdAt": FieldValue.serverTimestamp(),
       });
 
@@ -106,13 +112,19 @@ class _LoadingPageState extends State<LoadingPage>
   }
 
   void _startProgressAnimation() {
-    // Adjust timing to match 5-second matching process
-    const duration = Duration(milliseconds: 50);
+    _startTime = DateTime.now();
+    const duration = Duration(milliseconds: 100);
     _progressTimer = Timer.periodic(duration, (timer) {
-      if (_progress < 100) {
+      if (_isMatching && _startTime != null) {
+        final elapsed = DateTime.now().difference(_startTime!).inMilliseconds;
+        final progressPercent = (elapsed / 5000 * 100).clamp(0, 100).toDouble();
+
         setState(() {
-          _progress += 1; // Reduced increment to match 5-second timeframe
+          _progress = progressPercent;
         });
+        if (progressPercent >= 100) {
+          timer.cancel();
+        }
       } else {
         timer.cancel();
       }
@@ -133,6 +145,17 @@ class _LoadingPageState extends State<LoadingPage>
     });
   }
 
+  // Calculate distance between two coordinates in meters
+  double _calculateDistance(
+    double lat1,
+    double lon1,
+    double lat2,
+    double lon2,
+  ) {
+    return Geolocator.distanceBetween(lat1, lon1, lat2, lon2);
+  }
+
+  // 在 _startMatching 方法中修改时间窗口和匹配逻辑
   Future<void> _startMatching() async {
     _matchingTimer = Timer(const Duration(seconds: 5), () async {
       if (!mounted) return;
@@ -144,32 +167,102 @@ class _LoadingPageState extends State<LoadingPage>
         final currentUser = _auth.currentUser;
         if (currentUser == null) return;
 
+        // 扩展时间窗口到10分钟，增加匹配机会
+        final tenMinutesAgo = Timestamp.fromDate(
+          DateTime.now().subtract(const Duration(minutes: 10)),
+        );
+
+        // 添加更宽松的查询条件
         final snapshot = await _firestore
             .collection('users')
             .where('destination', isEqualTo: widget.destination)
+            .where('createdAt', isGreaterThan: tenMinutesAgo)
+            .where('uid', isNotEqualTo: currentUser.uid)
             .get();
 
-        // Filter out the current user locally
-        final filteredDocs = snapshot.docs.where((doc) => 
-            doc['uid'] != currentUser.uid).toList();
+        // 首先检查状态为searching的用户
+        List<QueryDocumentSnapshot> searchingUsers = [];
+        List<QueryDocumentSnapshot> otherUsers = [];
 
-        if (filteredDocs.isNotEmpty) {
-          isMatched = true;
-          matchedPartners = filteredDocs.map((doc) {
-            final data = doc.data();
-            return {
-              'uid': data['uid'] ?? '',
-              'email': data['email'] ?? '',
-              'destination': data['destination'] ?? '',
-              'currentLocation': data['currentLocation'] ?? '',
-            };
-          }).toList();
+        for (var doc in snapshot.docs) {
+          final data = doc.data() as Map<String, dynamic>;
+          if (data['status'] == 'searching') {
+            searchingUsers.add(doc);
+          } else {
+            otherUsers.add(doc);
+          }
+        }
+
+        // 优先匹配状态为searching的用户
+        if (searchingUsers.isNotEmpty) {
+          for (var doc in searchingUsers) {
+            final data = doc.data() as Map<String, dynamic>;
+            final partnerLat = (data['latitude'] as num?)?.toDouble();
+            final partnerLon = (data['longitude'] as num?)?.toDouble();
+
+            if (partnerLat != null && partnerLon != null) {
+              final distance = _calculateDistance(
+                widget.currentPosition.latitude,
+                widget.currentPosition.longitude,
+                partnerLat,
+                partnerLon,
+              );
+
+              if (distance <= 1000) {
+                isMatched = true;
+                matchedPartners.add({
+                  'uid': data['uid'] ?? '',
+                  'email': data['email'] ?? '',
+                  'destination': data['destination'] ?? '',
+                  'currentLocation': data['currentLocation'] ?? '',
+                  'distance': distance.round(),
+                  'docId': doc.id, // 保存文档ID以便后续更新
+                });
+                break; // 找到一个匹配就退出循环
+              }
+            }
+          }
+        }
+
+        // 如果没有找到searching状态的用户，检查其他状态的用户
+        if (!isMatched && otherUsers.isNotEmpty) {
+          for (var doc in otherUsers) {
+            final data = doc.data() as Map<String, dynamic>;
+            // 只考虑状态不是cancelled或completed的用户
+            if (data['status'] != 'cancelled' &&
+                data['status'] != 'completed') {
+              final partnerLat = (data['latitude'] as num?)?.toDouble();
+              final partnerLon = (data['longitude'] as num?)?.toDouble();
+
+              if (partnerLat != null && partnerLon != null) {
+                final distance = _calculateDistance(
+                  widget.currentPosition.latitude,
+                  widget.currentPosition.longitude,
+                  partnerLat,
+                  partnerLon,
+                );
+
+                if (distance <= 1000) {
+                  isMatched = true;
+                  matchedPartners.add({
+                    'uid': data['uid'] ?? '',
+                    'email': data['email'] ?? '',
+                    'destination': data['destination'] ?? '',
+                    'currentLocation': data['currentLocation'] ?? '',
+                    'distance': distance.round(),
+                    'docId': doc.id,
+                  });
+                  break;
+                }
+              }
+            }
+          }
         }
       } catch (e) {
         debugPrint("❌ Error fetching partners: $e");
         if (mounted) {
           setState(() {
-            _errorMessage = "Failed to find matches";
+            _errorMessage = "Failed to find matches: $e";
           });
         }
       }
@@ -183,8 +276,33 @@ class _LoadingPageState extends State<LoadingPage>
         _animationController.stop();
       }
 
-      // If matched, navigate immediately
-      if (isMatched) {
+      // 如果匹配成功，更新双方状态为matched
+      if (isMatched && matchedPartners.isNotEmpty) {
+        try {
+          // 更新当前用户状态
+          if (_currentUserDocId != null) {
+            await _firestore.collection('users').doc(_currentUserDocId).update({
+              'status': 'matched',
+              'matchedWith': matchedPartners[0]['uid'],
+              'updatedAt': FieldValue.serverTimestamp(),
+            });
+          }
+
+          // 更新匹配到的用户状态
+          if (matchedPartners[0]['docId'] != null) {
+            await _firestore
+                .collection('users')
+                .doc(matchedPartners[0]['docId'])
+                .update({
+                  'status': 'matched',
+                  'matchedWith': _auth.currentUser?.uid,
+                  'updatedAt': FieldValue.serverTimestamp(),
+                });
+          }
+        } catch (e) {
+          debugPrint("❌ Error updating matched status: $e");
+        }
+
         await Future.delayed(const Duration(milliseconds: 800));
         if (mounted) {
           Navigator.of(context).pop({
@@ -194,17 +312,19 @@ class _LoadingPageState extends State<LoadingPage>
           });
         }
       }
-      // If not matched, we'll show the failure UI and let the user decide next steps
     });
   }
 
-  Future<void> _cleanupUserDocument() async {
+  Future<void> _updateUserStatus(String status) async {
     if (_currentUserDocId != null) {
       try {
-        await _firestore.collection('users').doc(_currentUserDocId).delete();
-        debugPrint("✅ User document cleaned up");
+        await _firestore.collection('users').doc(_currentUserDocId).update({
+          'status': status,
+          'updatedAt': FieldValue.serverTimestamp(),
+        });
+        debugPrint("✅ User status updated to $status");
       } catch (e) {
-        debugPrint("❌ Error cleaning up user document: $e");
+        debugPrint("❌ Error updating user status: $e");
       }
     }
   }
@@ -215,7 +335,7 @@ class _LoadingPageState extends State<LoadingPage>
     _messageTimer?.cancel();
     _matchingTimer?.cancel();
     _animationController.dispose();
-    _cleanupUserDocument();
+    _updateUserStatus('cancelled');
     super.dispose();
   }
 
@@ -228,10 +348,7 @@ class _LoadingPageState extends State<LoadingPage>
           gradient: LinearGradient(
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
-            colors: [
-              Colors.blue.shade50,
-              Colors.white,
-            ],
+            colors: [Colors.blue.shade50, Colors.white],
           ),
         ),
         child: Center(
@@ -322,7 +439,7 @@ class _LoadingPageState extends State<LoadingPage>
     return Column(
       children: [
         Text(
-          '$_progress%',
+          '${_progress.round()}%',
           style: TextStyle(
             fontSize: 24,
             fontWeight: FontWeight.bold,
@@ -342,10 +459,7 @@ class _LoadingPageState extends State<LoadingPage>
         const SizedBox(height: 8),
         Text(
           _isMatching ? 'Searching...' : 'Complete!',
-          style: TextStyle(
-            fontSize: 14,
-            color: Colors.grey.shade600,
-          ),
+          style: TextStyle(fontSize: 14, color: Colors.grey.shade600),
         ),
       ],
     );
@@ -385,7 +499,11 @@ class _LoadingPageState extends State<LoadingPage>
       ),
       child: Column(
         children: [
-          _buildLocationRow(Icons.location_on, Colors.blue, widget.currentLocation),
+          _buildLocationRow(
+            Icons.location_on,
+            Colors.blue,
+            widget.currentLocation,
+          ),
           const SizedBox(height: 12),
           const Divider(height: 1),
           const SizedBox(height: 12),
@@ -403,10 +521,7 @@ class _LoadingPageState extends State<LoadingPage>
         Expanded(
           child: Text(
             text,
-            style: const TextStyle(
-              fontSize: 14,
-              fontWeight: FontWeight.w500,
-            ),
+            style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
             overflow: TextOverflow.ellipsis,
           ),
         ),
@@ -422,26 +537,15 @@ class _LoadingPageState extends State<LoadingPage>
         _matchingTimer?.cancel();
         _animationController.stop();
 
-        if (_currentUserDocId != null) {
-          FirebaseFirestore.instance
-              .collection('users')
-              .doc(_currentUserDocId)
-              .delete();
-        }
+        _updateUserStatus('cancelled');
 
-        Navigator.pop(context, {
-          'isMatched': false,
-          'matchedPartners': [],
-        });
+        Navigator.pop(context, {'isMatched': false, 'matchedPartners': []});
       },
       style: TextButton.styleFrom(
         foregroundColor: Colors.grey.shade700,
         padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
       ),
-      child: const Text(
-        'Cancel Search',
-        style: TextStyle(fontSize: 16),
-      ),
+      child: const Text('Cancel Search', style: TextStyle(fontSize: 16)),
     );
   }
 
@@ -513,7 +617,7 @@ class _LoadingPageState extends State<LoadingPage>
             ),
           ),
           const SizedBox(height: 20),
-          
+
           // Title
           Text(
             'No Partners Available',
@@ -524,28 +628,29 @@ class _LoadingPageState extends State<LoadingPage>
             ),
           ),
           const SizedBox(height: 12),
-          
+
           // Description
           Text(
-            'No one else is heading to your destination right now. You\'ll need to walk alone this time.',
+            _errorMessage ??
+                'No one else is heading to your destination right now. You\'ll need to walk alone this time.',
             textAlign: TextAlign.center,
             style: TextStyle(
               fontSize: 16,
-              color: Colors.grey[600],
+              color: _errorMessage != null ? Colors.red : Colors.grey[600],
               height: 1.5,
             ),
           ),
           const SizedBox(height: 30),
-          
+
           // Single action button
           SizedBox(
             width: double.infinity,
             child: ElevatedButton(
               onPressed: () {
-                Navigator.of(context).pop({
-                  'isMatched': false,
-                  'matchedPartners': [],
-                });
+                _updateUserStatus('completed');
+                Navigator.of(
+                  context,
+                ).pop({'isMatched': false, 'matchedPartners': []});
               },
               style: ElevatedButton.styleFrom(
                 backgroundColor: Colors.blue,
@@ -567,206 +672,3 @@ class _LoadingPageState extends State<LoadingPage>
     );
   }
 }
-
-//demo
-
-// demo_loading_page.dart
-// import 'package:flutter/material.dart';
-// import 'pair_result_page.dart';
-
-// class LoadingPage extends StatefulWidget {
-//   final String currentLocation;
-//   final String destination;
-
-//   const LoadingPage({
-//     super.key,
-//     required this.currentLocation,
-//     required this.destination,
-//   });
-
-//   @override
-//   State<LoadingPage> createState() => _LoadingPageState();
-// }
-
-// class _LoadingPageState extends State<LoadingPage> {
-//   int _selectedScenario = 0;
-//   final List<String> _scenarios = [
-//     "No matches found",
-//     "Single match found",
-//     "Multiple matches found",
-//     "Error scenario"
-//   ];
-
-//   final List<Map<String, dynamic>> _demoPartners = [
-//     {
-//       'uid': 'demo_uid_1',
-//       'email': 'jane.smith@example.com',
-//       'destination': 'Central Park',
-//       'currentLocation': 'Times Square',
-//     },
-//     {
-//       'uid': 'demo_uid_2',
-//       'email': 'john.doe@example.com',
-//       'destination': 'Central Park',
-//       'currentLocation': 'Empire State Building',
-//     },
-//     {
-//       'uid': 'demo_uid_3',
-//       'email': 'sarah.williams@example.com',
-//       'destination': 'Central Park',
-//       'currentLocation': 'Rockefeller Center',
-//     }
-//   ];
-
-//   void _navigateToResult() {
-//     List<Map<String, dynamic>> matchedPartners = [];
-
-//     switch (_selectedScenario) {
-//       case 0: // No matches
-//         matchedPartners = [];
-//         break;
-//       case 1: // Single match
-//         matchedPartners = [_demoPartners[0]];
-//         break;
-//       case 2: // Multiple matches
-//         matchedPartners = _demoPartners;
-//         break;
-//       case 3: // Error - use invalid data
-//         matchedPartners = [
-//           {'email': 'error@example.com'} // Minimal data to cause potential issues
-//         ];
-//         break;
-//     }
-
-//     Navigator.pushReplacement(
-//       context,
-//       MaterialPageRoute(
-//         builder: (context) => PairResultPage(
-//           currentLocation: widget.currentLocation,
-//           destination: widget.destination,
-//           matchedPartners: matchedPartners,
-//           onStartJourney: () {
-//             debugPrint("Demo journey started");
-//           },
-//         ),
-//       ),
-//     );
-//   }
-
-//   @override
-//   Widget build(BuildContext context) {
-//     return Scaffold(
-//       appBar: AppBar(
-//         title: const Text('Demo Mode - Test Scenarios'),
-//         backgroundColor: Colors.purple,
-//       ),
-//       body: Padding(
-//         padding: const EdgeInsets.all(20.0),
-//         child: Column(
-//           crossAxisAlignment: CrossAxisAlignment.start,
-//           children: [
-//             // Route info
-//             Card(
-//               elevation: 4,
-//               child: Padding(
-//                 padding: const EdgeInsets.all(16.0),
-//                 child: Column(
-//                   crossAxisAlignment: CrossAxisAlignment.start,
-//                   children: [
-//                     const Text(
-//                       'Your Route',
-//                       style: TextStyle(
-//                         fontSize: 18,
-//                         fontWeight: FontWeight.bold,
-//                       ),
-//                     ),
-//                     const SizedBox(height: 12),
-//                     _buildLocationRow(Icons.location_on, Colors.blue, widget.currentLocation),
-//                     const SizedBox(height: 8),
-//                     const Divider(height: 1),
-//                     const SizedBox(height: 8),
-//                     _buildLocationRow(Icons.flag, Colors.red, widget.destination),
-//                   ],
-//                 ),
-//               ),
-//             ),
-            
-//             const SizedBox(height: 30),
-            
-//             // Scenario selection
-//             const Text(
-//               'Select Test Scenario:',
-//               style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-//             ),
-//             const SizedBox(height: 15),
-            
-//             Expanded(
-//               child: ListView.builder(
-//                 itemCount: _scenarios.length,
-//                 itemBuilder: (context, index) {
-//                   return Card(
-//                     margin: const EdgeInsets.only(bottom: 12),
-//                     color: _selectedScenario == index 
-//                         ? Colors.purple.withOpacity(0.1) 
-//                         : null,
-//                     child: ListTile(
-//                       title: Text(_scenarios[index]),
-//                       leading: Radio<int>(
-//                         value: index,
-//                         groupValue: _selectedScenario,
-//                         onChanged: (value) {
-//                           setState(() {
-//                             _selectedScenario = value!;
-//                           });
-//                         },
-//                       ),
-//                       onTap: () {
-//                         setState(() {
-//                           _selectedScenario = index;
-//                         });
-//                       },
-//                     ),
-//                   );
-//                 },
-//               ),
-//             ),
-            
-//             // Action button
-//             SizedBox(
-//               width: double.infinity,
-//               child: ElevatedButton(
-//                 onPressed: _navigateToResult,
-//                 style: ElevatedButton.styleFrom(
-//                   backgroundColor: Colors.purple,
-//                   padding: const EdgeInsets.symmetric(vertical: 16),
-//                   shape: RoundedRectangleBorder(
-//                     borderRadius: BorderRadius.circular(12),
-//                   ),
-//                 ),
-//                 child: const Text(
-//                   'Test This Scenario',
-//                   style: TextStyle(fontSize: 16, color: Colors.white),
-//                 ),
-//               ),
-//             ),
-//           ],
-//         ),
-//       ),
-//     );
-//   }
-
-//   Widget _buildLocationRow(IconData icon, Color color, String text) {
-//     return Row(
-//       children: [
-//         Icon(icon, color: color, size: 20),
-//         const SizedBox(width: 12),
-//         Expanded(
-//           child: Text(
-//             text,
-//             style: const TextStyle(fontSize: 16),
-//           ),
-//         ),
-//       ],
-//     );
-//   }
-// }
