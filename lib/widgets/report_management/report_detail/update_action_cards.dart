@@ -29,7 +29,7 @@ class UpdateActionCards extends StatelessWidget { //cards to update report statu
                 const Text("Update Status", style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
                 const SizedBox(height: 12),
                 DropdownButtonFormField<ReportStatus>(
-                  value: selectedStatus,
+                  initialValue: selectedStatus,
                   decoration: const InputDecoration(border: OutlineInputBorder()),
                   items: ReportStatus.values.map((s) {
                     return DropdownMenuItem<ReportStatus>(value: s, child: Text(s.capitalize()));

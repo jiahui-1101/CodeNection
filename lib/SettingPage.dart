@@ -297,7 +297,7 @@ class _SettingsPageState extends State<SettingsPage> {
         title: const Text('Settings'),
         backgroundColor: theme.colorScheme.primaryContainer,
       ),
-      backgroundColor: theme.colorScheme.background,
+      backgroundColor: theme.colorScheme.surface,
       body: ListView(
         children: [
           // User profile section

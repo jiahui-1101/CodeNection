@@ -3,10 +3,13 @@ import 'dart:async';
 import 'dart:math' as math;
 import 'package:audioplayers/audioplayers.dart';
 import 'package:hello_flutter/GuardianModeScreen.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart'; 
+import 'package:geolocator/geolocator.dart'; 
 
 class SmartSosButton extends StatefulWidget {
   final Function? onEmergencyDetected;
-  
+
   const SmartSosButton({super.key, this.onEmergencyDetected});
 
   @override
@@ -97,7 +100,8 @@ class _SmartSosButtonState extends State<SmartSosButton>
       if (_countdown == 0) {
         timer.cancel();
         if (_isMenuOpen) {
-          _navigateToGuardian("⚠️ Auto-triggered: Security Threat");
+
+          _triggerAndNavigateGuardian("⚠️ Auto-triggered: Security Threat");
         }
       } else {
         setState(() {
@@ -106,19 +110,71 @@ class _SmartSosButtonState extends State<SmartSosButton>
       }
     });
   }
+  
 
-  void _navigateToGuardian(String message) {
-    if (!mounted) return;
-    Navigator.of(context).push(MaterialPageRoute(
-      builder: (_) => GuardianModeScreen(
-        initialMessage: message,
-        audioPlayer: _audioPlayer,
-      ),
+
+Future<void> _triggerAndNavigateGuardian(String message,
+    {String type = "security"}) async {
+ 
+  final currentUser = FirebaseAuth.instance.currentUser;
+  if (currentUser == null) {
+    print("Error: User is not logged in.");
+    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+      backgroundColor: Colors.red,
+      content: Text("Error: You must be logged in to send an alert."),
     ));
-    if (_isMenuOpen) {
-      _toggleMenu();
-    }
+    return;
   }
+
+  final duressQuery = await FirebaseFirestore.instance
+      .collection('alerts')
+      .where('userId', isEqualTo: currentUser.uid)
+      .where('duress', isEqualTo: true)
+      .limit(1)
+      .get();
+
+  if (duressQuery.docs.isNotEmpty) {
+    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+      backgroundColor: Colors.orange,
+      content: Text("A duress alert is already active. Cannot create a new one."),
+    ));
+    return; 
+  }
+
+    Position? position;
+  try {
+ 
+    position = await Geolocator.getCurrentPosition();
+  } catch (e) {
+    print("Failed to get location: $e");
+  }
+
+
+  final docRef = await FirebaseFirestore.instance.collection('alerts').add({
+    'status': 'pending',
+    'type': type,
+    'timestamp': FieldValue.serverTimestamp(),
+    'userId': currentUser.uid,
+    'title': message, 
+    'latitude': position?.latitude,   
+    'longitude': position?.longitude,
+  });
+
+  final alertId = docRef.id;
+
+  if (!mounted) return;
+  Navigator.of(context).push(MaterialPageRoute(
+    builder: (_) => GuardianModeScreen(
+      initialMessage: message,
+      audioPlayer: _audioPlayer,
+      alertId: alertId,
+    ),
+  ));
+
+  if (_isMenuOpen) {
+    _toggleMenu();
+  }
+}
 
   @override
   Widget build(BuildContext context) {
@@ -146,9 +202,7 @@ class _SmartSosButtonState extends State<SmartSosButton>
                 ),
               ),
             ),
-            
             ..._buildFanMenuItems(),
-            
             Align(
               alignment: Alignment.bottomRight,
               child: GestureDetector(
@@ -201,9 +255,27 @@ class _SmartSosButtonState extends State<SmartSosButton>
 
   List<Widget> _buildFanMenuItems() {
     final List<Map<String, dynamic>> items = [
-      {'angle': 0.0, 'color': Colors.blue, 'icon': Icons.local_hospital, 'message': "🚑 Medical Alert Sent"},
-      {'angle': 45.0, 'color': Colors.orange, 'icon': Icons.security, 'message': "🛡️ Security Threat Sent"},
-      {'angle': 90.0, 'color': Colors.red.shade700, 'icon': Icons.fireplace_rounded, 'message': "🔥 Fire/Hazard Alert Sent"},
+      {
+        'angle': 0.0,
+        'color': Colors.blue,
+        'icon': Icons.local_hospital,
+        'message': "🚑 Medical Alert Sent",
+        'type': 'medical'
+      },
+      {
+        'angle': 45.0,
+        'color': Colors.orange,
+        'icon': Icons.security,
+        'message': "🛡️ Security Threat Sent",
+        'type': 'security'
+      },
+      {
+        'angle': 90.0,
+        'color': Colors.red.shade700,
+        'icon': Icons.fireplace_rounded,
+        'message': "🔥 Fire/Hazard Alert Sent",
+        'type': 'fire'
+      },
     ];
 
     const double mainButtonRadius = 100 / 2;
@@ -214,9 +286,11 @@ class _SmartSosButtonState extends State<SmartSosButton>
       final double angle = item['angle'];
       final double rad = angle * (math.pi / 180.0);
 
-      final double openRight = mainButtonRadius - iconRadius + (distance * math.cos(rad));
-      final double openBottom = mainButtonRadius - iconRadius + (distance * math.sin(rad));
-      
+      final double openRight =
+          mainButtonRadius - iconRadius + (distance * math.cos(rad));
+      final double openBottom =
+          mainButtonRadius - iconRadius + (distance * math.sin(rad));
+
       final double closedRight = mainButtonRadius - iconRadius;
       final double closedBottom = mainButtonRadius - iconRadius;
 
@@ -230,7 +304,7 @@ class _SmartSosButtonState extends State<SmartSosButton>
           opacity: _isMenuOpen ? 1.0 : 0.0,
           child: InkWell(
             onTap: () {
-              _navigateToGuardian(item['message']!);
+              _triggerAndNavigateGuardian(item['message']!, type: item['type']);
             },
             child: Container(
               width: 55,
@@ -238,7 +312,10 @@ class _SmartSosButtonState extends State<SmartSosButton>
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
                 color: item['color'],
-                boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.2), blurRadius: 5)],
+                boxShadow: [
+                  BoxShadow(
+                      color: Colors.black.withOpacity(0.2), blurRadius: 5)
+                ],
               ),
               child: Icon(item['icon'], color: Colors.white),
             ),

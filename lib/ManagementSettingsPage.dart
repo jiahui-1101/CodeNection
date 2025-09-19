@@ -234,7 +234,7 @@ class _ManagementSettingsPageState extends State<ManagementSettingsPage> {
         title: const Text('Settings'),
         backgroundColor: theme.colorScheme.primaryContainer,
       ),
-      backgroundColor: theme.colorScheme.background,
+      backgroundColor: theme.colorScheme.surface,
       body: ListView(
         children: [
           // User profile

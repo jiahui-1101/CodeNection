@@ -804,10 +804,10 @@ packages:
     dependency: transitive
     description:
       name: image_picker_android
-      sha256: a45bef33deb24839a51fb85a4d9e504ead2b1ad1c4779d02d09bf6a8857cdd52
+      sha256: "8dfe08ea7fcf7467dbaf6889e72eebd5e0d6711caae201fdac780eb45232cd02"
       url: "https://pub.dev"
     source: hosted
-    version: "0.8.13+2"
+    version: "0.8.13+3"
   image_picker_for_web:
     dependency: transitive
     description:
@@ -864,6 +864,14 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "0.18.1"
+  js:
+    dependency: transitive
+    description:
+      name: js
+      sha256: f2c445dce49627136094980615a031419f7f3eb393237e4ecd97ac15dea343f3
+      url: "https://pub.dev"
+    source: hosted
+    version: "0.6.7"
   json_annotation:
     dependency: transitive
     description:
@@ -912,6 +920,30 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "6.0.0"
+  location:
+    dependency: "direct main"
+    description:
+      name: location
+      sha256: ee57923720163324416ce0306b701db6d845d2c1a3bf44d25b607cbddbaa3973
+      url: "https://pub.dev"
+    source: hosted
+    version: "7.0.1"
+  location_platform_interface:
+    dependency: transitive
+    description:
+      name: location_platform_interface
+      sha256: "1e535ccc8b4a9612de4e4319871136b45d2b5d1fb0c2a8bf99687242bf7ca5f7"
+      url: "https://pub.dev"
+    source: hosted
+    version: "5.0.0"
+  location_web:
+    dependency: transitive
+    description:
+      name: location_web
+      sha256: e6435cfd175b0f6e94d6fdc43c104d13cec7e27b21a8cee00bd9516a3d6a4c81
+      url: "https://pub.dev"
+    source: hosted
+    version: "5.0.4"
   logger:
     dependency: transitive
     description:
@@ -1120,14 +1152,78 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "2.1.8"
-  rxdart:
-    dependency: transitive
+  record:
+    dependency: "direct main"
     description:
-      name: rxdart
-      sha256: "5c3004a4a8dbb94bd4bf5412a4def4acdaa12e12f269737a5751369e12d1a962"
+      name: record
+      sha256: "9dbc6ff3e784612f90a9b001373c45ff76b7a08abd2bd9fdf72c242320c8911c"
       url: "https://pub.dev"
     source: hosted
-    version: "0.28.0"
+    version: "6.1.1"
+  record_android:
+    dependency: transitive
+    description:
+      name: record_android
+      sha256: "854627cd78d8d66190377f98477eee06ca96ab7c9f2e662700daf33dbf7e6673"
+      url: "https://pub.dev"
+    source: hosted
+    version: "1.4.2"
+  record_ios:
+    dependency: transitive
+    description:
+      name: record_ios
+      sha256: "13e241ed9cbc220534a40ae6b66222e21288db364d96dd66fb762ebd3cb77c71"
+      url: "https://pub.dev"
+    source: hosted
+    version: "1.1.2"
+  record_linux:
+    dependency: transitive
+    description:
+      name: record_linux
+      sha256: "235b1f1fb84e810f8149cc0c2c731d7d697f8d1c333b32cb820c449bf7bb72d8"
+      url: "https://pub.dev"
+    source: hosted
+    version: "1.2.1"
+  record_macos:
+    dependency: transitive
+    description:
+      name: record_macos
+      sha256: "2849068bb59072f300ad63ed146e543d66afaef8263edba4de4834fc7c8d4d35"
+      url: "https://pub.dev"
+    source: hosted
+    version: "1.1.1"
+  record_platform_interface:
+    dependency: transitive
+    description:
+      name: record_platform_interface
+      sha256: b0065fdf1ec28f5a634d676724d388a77e43ce7646fb049949f58c69f3fcb4ed
+      url: "https://pub.dev"
+    source: hosted
+    version: "1.4.0"
+  record_web:
+    dependency: transitive
+    description:
+      name: record_web
+      sha256: "4f0adf20c9ccafcc02d71111fd91fba1ca7b17a7453902593e5a9b25b74a5c56"
+      url: "https://pub.dev"
+    source: hosted
+    version: "1.2.0"
+  record_windows:
+    dependency: transitive
+    description:
+      name: record_windows
+      sha256: "223258060a1d25c62bae18282c16783f28581ec19401d17e56b5205b9f039d78"
+      url: "https://pub.dev"
+    source: hosted
+    version: "1.0.7"
+  rxdart:
+    dependency: "direct main"
+    description:
+      name: rxdart
+      sha256: "0c7c0cedd93788d996e33041ffecda924cc54389199cde4e6a34b440f50044cb"
+      url: "https://pub.dev"
+    source: hosted
+    version: "0.27.7"
   sanitize_html:
     dependency: transitive
     description:
