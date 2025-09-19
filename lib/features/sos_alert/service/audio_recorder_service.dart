@@ -15,7 +15,6 @@ class AudioRecorderService {
 
   AudioRecorderService(this.documentId, {this.isAlert = false});
 
-  // ✅ 核心修改：统一路径逻辑，尽管这里只用到了 'alerts'
   String get collectionPath => isAlert ? 'alerts' : 'guards';
 
   Future<void> initRecorder() async {
@@ -50,15 +49,18 @@ class AudioRecorderService {
       final file = File(path);
       if (await file.exists()) {
         try {
-          final storageFileName = "${DateTime.now().millisecondsSinceEpoch}.aac";
+          final storageFileName = "${DateTime.now().millisecondsSinceEpoch}.m4a";
           final ref = FirebaseStorage.instance
               .ref("alert_audio/$documentId/$storageFileName");
 
-          UploadTask uploadTask = ref.putFile(file);
+          // ✅ 加上 contentType
+          UploadTask uploadTask = ref.putFile(
+            file,
+            SettableMetadata(contentType: "audio/mp4"),
+          );
           TaskSnapshot snapshot = await uploadTask;
           final downloadUrl = await snapshot.ref.getDownloadURL();
 
-          // 这段逻辑只在 isAlert=true 时被调用，所以 collectionPath 一定是 'alerts'
           await FirebaseFirestore.instance
               .collection(collectionPath)
               .doc(documentId)
@@ -79,9 +81,12 @@ class AudioRecorderService {
 
     if (_isRecording) {
       Directory tempDir = await getTemporaryDirectory();
-      final newFileName = '${DateTime.now().millisecondsSinceEpoch}.aac';
+      final newFileName = '${DateTime.now().millisecondsSinceEpoch}.m4a';
       _currentFilePath = '${tempDir.path}/$newFileName';
-      await _recorder!.startRecorder(toFile: _currentFilePath);
+      await _recorder!.startRecorder(
+        toFile: _currentFilePath,
+        codec: Codec.aacMP4, // ✅ 用 AAC in MP4 容器
+      );
     }
   }
 

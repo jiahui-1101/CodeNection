@@ -4,8 +4,9 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'dart:async';
 import 'package:rxdart/rxdart.dart';
-import 'package:hello_flutter/guard_tracking_page.dart';
-
+import 'package:hello_flutter/features/sos_alert/guard_view/guard_tracking_page.dart';
+import 'package:hello_flutter/features/sos_alert/service/location_service.dart';
+import 'alert_record_histories.dart';
 class GuardPage extends StatefulWidget {
   final String guardId;
   const GuardPage({super.key, required this.guardId});
@@ -20,8 +21,6 @@ class _GuardPageState extends State<GuardPage> {
   @override
   void initState() {
     super.initState();
-
-    // -- LocationService 的代码已从此文件移除 --
 
     Stream<QuerySnapshot> pendingStream = FirebaseFirestore.instance
         .collection('alerts')
@@ -41,11 +40,15 @@ class _GuardPageState extends State<GuardPage> {
         final docs2 = myTasks.docs;
 
         final allDocsMap = <String, QueryDocumentSnapshot>{};
-        for (var doc in docs1) { allDocsMap[doc.id] = doc; }
-        for (var doc in docs2) { allDocsMap[doc.id] = doc; }
-        
+        for (var doc in docs1) {
+          allDocsMap[doc.id] = doc;
+        }
+        for (var doc in docs2) {
+          allDocsMap[doc.id] = doc;
+        }
+
         final combinedList = allDocsMap.values.toList();
-        
+
         combinedList.sort((a, b) {
           final dataA = a.data() as Map<String, dynamic>;
           final dataB = b.data() as Map<String, dynamic>;
@@ -59,12 +62,6 @@ class _GuardPageState extends State<GuardPage> {
     );
   }
 
-  // dispose 方法里也不再需要停止 LocationService
-  @override
-  void dispose() {
-    super.dispose();
-  }
-
   Future<void> _acceptAndNavigate(String alertId) async {
     await FirebaseFirestore.instance.collection('alerts').doc(alertId).update({
       'status': 'accepted',
@@ -72,17 +69,33 @@ class _GuardPageState extends State<GuardPage> {
       'acceptedAt': FieldValue.serverTimestamp(),
     });
 
+    final locationService = LocationService(widget.guardId, isAlert: false);
+    locationService.startSharingLocation();
+
     _navigateToTracking(alertId);
   }
 
   void _navigateToTracking(String alertId) {
     if (!mounted) return;
-    Navigator.push(context, MaterialPageRoute(
-      builder: (_) => TrackingPage(
-        alertId: alertId,
-        guardId: widget.guardId,
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => TrackingPage(
+          alertId: alertId,
+          guardId: widget.guardId,
+        ),
       ),
-    ));
+    );
+  }
+
+  void _navigateToRecordings(String alertId) {
+    if (!mounted) return;
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => RecordingsPage(alertId: alertId),
+      ),
+    );
   }
 
   @override
@@ -151,18 +164,30 @@ class _GuardPageState extends State<GuardPage> {
       default: // completed, cancelled, etc.
         statusIcon = Icons.check_circle;
         statusColor = Colors.grey;
-        actionButton = const Icon(Icons.done, color: Colors.grey);
+        actionButton = IconButton(
+          icon: const Icon(Icons.history, color: Colors.blueGrey),
+          onPressed: () => _navigateToRecordings(alert.id),
+        );
     }
-    
+
     return Card(
       margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-      color: status == 'pending' ? Colors.red.shade50 : (status == 'accepted' ? Colors.orange.shade50 : Colors.grey.shade200),
+      color: status == 'pending'
+          ? Colors.red.shade50
+          : (status == 'accepted'
+              ? Colors.orange.shade50
+              : Colors.grey.shade200),
       child: ListTile(
         leading: Icon(statusIcon, color: statusColor),
-        title: Text(data['title'] ?? 'Unknown Alert', style: const TextStyle(fontWeight: FontWeight.bold)),
+        title: Text(data['title'] ?? 'Unknown Alert',
+            style: const TextStyle(fontWeight: FontWeight.bold)),
         subtitle: Text(statusText),
         trailing: actionButton,
-        onTap: status == 'accepted' ? () => _navigateToTracking(alert.id) : null,
+        onTap: status == 'accepted'
+            ? () => _navigateToTracking(alert.id)
+            : (status == 'completed'
+                ? () => _navigateToRecordings(alert.id)
+                : null),
         tileColor: isDuress ? Colors.red.withOpacity(0.3) : null,
       ),
     );

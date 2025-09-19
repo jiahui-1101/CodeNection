@@ -53,6 +53,7 @@ dependencies:
   location: ^7.0.0
   record: ^6.1.1
   rxdart: ^0.27.7 
+  just_audio: ^0.9.36 
 
 
 dependency_overrides:

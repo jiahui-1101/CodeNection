@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'features/sos_alert/guard_page.dart';
+import 'features/sos_alert/guard_view/guard_page.dart';
 
 class EmergencyPage extends StatefulWidget {
   const EmergencyPage({super.key});
