@@ -4,8 +4,6 @@ import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'dart:async';
-
-// 导入你项目中的其他文件
 import 'AlertDeactivation.dart';
 import 'features/sos_alert/service/location_service.dart';
 import 'features/sos_alert/service/audio_recorder_service.dart';
@@ -27,20 +25,21 @@ class GuardianModeScreen extends StatefulWidget {
   @override
   State<GuardianModeScreen> createState() => _GuardianModeScreenState();
 }
-
 class _GuardianModeScreenState extends State<GuardianModeScreen> {
   GoogleMapController? _mapController;
   final Set<Marker> _markers = {};
   late LocationService _locationService;
   late AudioRecorderService _audioRecorder;
-
   StreamSubscription? _alertStatusSubscription;
-
   final pinController = TextEditingController();
   final String safePin = "0000";
   final String duressPin = "1234";
-
   bool _isDuressExit = false;
+  StreamSubscription? _guardLocationSubscription;
+  LatLng? _userPosition;
+  LatLng? _guardPosition;
+  String? _guardIdOnAlert;
+  final Completer<GoogleMapController> _mapControllerCompleter = Completer();
 
   @override
   void initState() {
@@ -58,53 +57,136 @@ class _GuardianModeScreenState extends State<GuardianModeScreen> {
         .collection('alerts')
         .doc(widget.alertId)
         .snapshots()
-        .listen((doc) {
+        .listen((doc) async {
       if (!mounted || !doc.exists || doc.data() == null) return;
 
       final data = doc.data()!;
       final status = data['status'];
-      
-      // ✅ 监听器现在只负责处理 Guard 完成任务的情况
-      if (status == 'completed') {
-        // 立即停止服务
-        _audioRecorder.stopAndUpload();
-        _locationService.stopSharingLocation();
+
+      if (status == 'completed' || status == 'cancelled') {
+        _alertStatusSubscription?.cancel();
+        _alertStatusSubscription = null;
+
+        await _audioRecorder.stopAndUpload();
+        await _locationService.stopSharingLocation();
+
+        if (!mounted) return;
 
         final navContext = context;
-        ScaffoldMessenger.of(navContext).showSnackBar(const SnackBar(
-          content: Text("Alert has been resolved by the guard."),
+        ScaffoldMessenger.of(navContext).showSnackBar(SnackBar(
+          content: Text(status == 'completed'
+              ? "Alert has been resolved by the guard."
+              : "Alert has been cancelled."),
           backgroundColor: Colors.green,
         ));
-        
-        Future.delayed(const Duration(milliseconds: 1500), () {
-          if (mounted) {
-            Navigator.of(navContext).pop();
-          }
-        });
+
+        await Future.delayed(const Duration(milliseconds: 1500));
+
+        if (mounted) {
+          Navigator.of(navContext).pop();
+        }
         return;
       }
 
-      // 更新地图标记
       if (data['latitude'] != null && data['longitude'] != null) {
-        final LatLng userLocation = LatLng(data['latitude'], data['longitude']);
-        setState(() {
-          _markers.clear();
-          _markers.add(Marker(
-            markerId: const MarkerId('user_location'),
-            position: userLocation,
-            icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueRed),
-            infoWindow: InfoWindow(
-                title: data['duress'] == true
-                    ? "Active DURESS"
-                    : "Active Emergency"),
-          ));
-          _mapController?.animateCamera(CameraUpdate.newLatLng(userLocation));
-        });
+        final newUserPosition = LatLng(data['latitude'], data['longitude']);
+        if (newUserPosition != _userPosition) {
+          setState(() {
+            _userPosition = newUserPosition;
+            _updateMarkers();
+          });
+        }
+      }
+
+      final guardId = data['guardId'] as String?;
+      if (guardId != null && _guardIdOnAlert != guardId) {
+        _guardIdOnAlert = guardId;
+        _listenToGuardLocation();
       }
     });
   }
 
-  // ✅ 核心修改：按钮点击事件现在全权负责处理 PIN 码的退出逻辑
+  void _listenToGuardLocation() {
+    if (_guardIdOnAlert == null) return;
+    _guardLocationSubscription?.cancel();
+    _guardLocationSubscription = FirebaseFirestore.instance
+        .collection('guards')
+        .doc(_guardIdOnAlert)
+        .snapshots()
+        .listen((doc) {
+      if (mounted && doc.exists && doc.data() != null) {
+        final data = doc.data()!;
+        if (data['latitude'] != null && data['longitude'] != null) {
+          final newGuardPosition =
+              LatLng(data['latitude'], data['longitude']);
+          if (newGuardPosition != _guardPosition) {
+            setState(() {
+              _guardPosition = newGuardPosition;
+              _updateMarkers();
+            });
+          }
+        }
+      }
+    });
+  }
+
+  void _updateMarkers() {
+    _markers.clear();
+    if (_userPosition != null) {
+      _markers.add(Marker(
+        markerId: const MarkerId('user_location'),
+        position: _userPosition!,
+        icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueRed),
+        infoWindow: const InfoWindow(title: "Your Location"),
+      ));
+    }
+    if (_guardPosition != null) {
+      _markers.add(Marker(
+        markerId: const MarkerId('guard_location'),
+        position: _guardPosition!,
+        icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueBlue),
+        infoWindow: const InfoWindow(title: "Guard's Location"),
+      ));
+    }
+    _updateCameraBounds();
+  }
+
+  Future<void> _updateCameraBounds() async {
+    if (!mounted ||
+        _userPosition == null ||
+        !_mapControllerCompleter.isCompleted) return;
+
+    final controller = await _mapControllerCompleter.future;
+
+    if (_guardPosition == null) {
+      controller.animateCamera(CameraUpdate.newLatLngZoom(_userPosition!, 16));
+    } else {
+      controller.animateCamera(
+        CameraUpdate.newLatLngBounds(
+          LatLngBounds(
+            southwest: LatLng(
+              _userPosition!.latitude < _guardPosition!.latitude
+                  ? _userPosition!.latitude
+                  : _guardPosition!.latitude,
+              _userPosition!.longitude < _guardPosition!.longitude
+                  ? _userPosition!.longitude
+                  : _guardPosition!.longitude,
+            ),
+            northeast: LatLng(
+              _userPosition!.latitude > _guardPosition!.latitude
+                  ? _userPosition!.latitude
+                  : _guardPosition!.latitude,
+              _userPosition!.longitude > _guardPosition!.longitude
+                  ? _userPosition!.longitude
+                  : _guardPosition!.longitude,
+            ),
+          ),
+          100.0,
+        ),
+      );
+    }
+  }
+
   Future<void> _onDeactivatePressed() async {
     final result = await showDeactivationDialog(
       context,
@@ -113,30 +195,13 @@ class _GuardianModeScreenState extends State<GuardianModeScreen> {
       duressPin,
       widget.audioPlayer,
       alertId: widget.alertId,
-      // onDeactivate 仍然需要，因为 dialog 内部不知道要停止哪个 location service 实例
       onDeactivate: () async => await _locationService.stopSharingLocation(),
     );
 
     if (!mounted) return;
 
     if (result == 'safe') {
-      // ✅ 用户输入了 safe pin，我们在这里直接处理，不再依赖监听器
-      // 1. 停止录音服务
-      await _audioRecorder.stopAndUpload();
-
-      // 2. 显示提示
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-        content: Text("✅ Alert genuinely cancelled."),
-        backgroundColor: Colors.green,
-      ));
-      
-      // 3. 延迟后退出
-      Future.delayed(const Duration(milliseconds: 500), () {
-        if (mounted) Navigator.of(context).pop();
-      });
-
     } else if (result == 'duress') {
-      // 胁迫模式是特殊情况，需要立即退出，并保持后台服务运行
       setState(() {
         _isDuressExit = true;
       });
@@ -151,20 +216,20 @@ class _GuardianModeScreenState extends State<GuardianModeScreen> {
   @override
   void dispose() {
     _alertStatusSubscription?.cancel();
+    _guardLocationSubscription?.cancel();
     pinController.dispose();
 
     if (!_isDuressExit) {
       _audioRecorder.stopAndUpload();
       _locationService.stopSharingLocation();
+      _audioRecorder.dispose(); 
     }
-    _audioRecorder.dispose();
 
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
-    // Build 方法完全不变
     return WillPopScope(
       onWillPop: () async => false,
       child: Scaffold(
@@ -206,7 +271,11 @@ class _GuardianModeScreenState extends State<GuardianModeScreen> {
                           child: GoogleMap(
                             initialCameraPosition: const CameraPosition(
                                 target: LatLng(1.5583, 103.6375), zoom: 15),
-                            onMapCreated: (c) => _mapController = c,
+                            onMapCreated: (c) {
+                              if (!_mapControllerCompleter.isCompleted) {
+                                _mapControllerCompleter.complete(c);
+                              }
+                            },
                             markers: _markers,
                             myLocationEnabled: false,
                           ),

@@ -1,5 +1,3 @@
-// 文件名: tracking_page.dart
-
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
@@ -25,7 +23,7 @@ class TrackingPage extends StatefulWidget {
 }
 
 class _TrackingPageState extends State<TrackingPage> {
-  // --- 地图相关 ---
+
   final Completer<GoogleMapController> _mapControllerCompleter = Completer();
   final Set<Marker> _markers = {};
   final Set<Polyline> _polylines = {};
@@ -34,12 +32,9 @@ class _TrackingPageState extends State<TrackingPage> {
   String _distanceRemaining = "...";
   String _durationRemaining = "...";
   Timer? _routeRecalculationTimer;
-  final String _apiKey = "AIzaSyALfVigfIlFFmcVIEy-5OGos42GViiQe-M"; // ⚠️ 替换为你的 Key
+  final String _apiKey = "AIzaSyALfVigfIlFFmcVIEy-5OGos42GViiQe-M"; 
 
-  // --- 音频播放器实例 ---
   final AudioPlayer _audioPlayer = AudioPlayer();
-
-  // --- 后台服务 ---
   late LocationService _guardLocationService;
 
   @override
@@ -50,7 +45,6 @@ class _TrackingPageState extends State<TrackingPage> {
     _startRouteRecalculation();
   }
   
-  // (所有地图和导航相关的方法保持不变)
   void _startRouteRecalculation() {
     _routeRecalculationTimer?.cancel();
     _routeRecalculationTimer = Timer.periodic(const Duration(seconds: 20), (timer) {
@@ -337,9 +331,6 @@ class _TrackingPageState extends State<TrackingPage> {
   }
 }
 
-// =========================================================================
-// =================== AUDIO PLAYER TILE WIDGET (最终修正版) ===================
-// =========================================================================
 class AudioPlayerTile extends StatefulWidget {
   final AudioPlayer audioPlayer;
   final String url;
@@ -366,8 +357,6 @@ class _AudioPlayerTileState extends State<AudioPlayerTile> {
         final playerState = snapshot.data;
         final processingState = playerState?.processingState;
         final isPlaying = playerState?.playing ?? false;
-
-        // 判断当前播放的 URL 是否是这个 Tile 的 URL
         final isCurrentSource = widget.audioPlayer.audioSource?.toString().contains(widget.url) ?? false;
 
         final isLoading = isCurrentSource && (processingState == ProcessingState.loading || processingState == ProcessingState.buffering);
@@ -397,15 +386,13 @@ class _AudioPlayerTileState extends State<AudioPlayerTile> {
                         size: 30,
                         color: isThisTilePlaying ? Colors.blueAccent : null,
                       ),
-                      // 👈 ✅ 最终的、完全非阻塞的播放逻辑
                       onPressed: () {
                         if (isThisTilePlaying) {
                           widget.audioPlayer.pause();
                         } else if (isCurrentSource) {
                           widget.audioPlayer.play();
                         } else {
-                          // 先停止当前的播放，然后异步地设置源和播放
-                          // UI 会通过上面的 stream 自动更新为 loading 状态
+
                           widget.audioPlayer.stop();
                           widget.audioPlayer.setAudioSource(AudioSource.uri(Uri.parse(widget.url)));
                           widget.audioPlayer.play();

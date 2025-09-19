@@ -53,7 +53,6 @@ class AudioRecorderService {
           final ref = FirebaseStorage.instance
               .ref("alert_audio/$documentId/$storageFileName");
 
-          // ✅ 加上 contentType
           UploadTask uploadTask = ref.putFile(
             file,
             SettableMetadata(contentType: "audio/mp4"),

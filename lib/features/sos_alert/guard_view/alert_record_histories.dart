@@ -1,5 +1,3 @@
-// 文件名: recordings_page.dart
-
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:just_audio/just_audio.dart';
@@ -30,13 +28,11 @@ class _RecordingsPageState extends State<RecordingsPage> {
     _listenPlayer();
   }
 
-  /// 初始化 AudioSession，确保 Android/iOS 播放正常
   Future<void> _initAudioSession() async {
     final session = await AudioSession.instance;
     await session.configure(AudioSessionConfiguration.music());
   }
 
-  /// 监听播放状态和位置
   void _listenPlayer() {
     _playerStateSub = _audioPlayer.playerStateStream.listen((state) {
       if (!mounted) return;
@@ -67,7 +63,6 @@ class _RecordingsPageState extends State<RecordingsPage> {
     super.dispose();
   }
 
-  /// 播放/暂停指定音频
   Future<void> _playRecording(String url, String docId) async {
     try {
       if (_currentlyPlayingDocId == docId) {
