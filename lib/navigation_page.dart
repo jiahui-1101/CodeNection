@@ -60,7 +60,7 @@ class _NavigationPageState extends State<NavigationPage> {
 
   bool _showSafetyCompanion = false;
   final AudioPlayer _safetyAudioPlayer = AudioPlayer();
-  FlutterTts _flutterTts = FlutterTts();
+  final FlutterTts _flutterTts = FlutterTts();
 
   // Navigation following variables
   double? _userHeading;

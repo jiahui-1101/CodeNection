@@ -1,10 +1,11 @@
-// 文件名: GuardianModeScreen.dart (完整修正版)
-
 import 'package:flutter/material.dart';
 import 'package:audioplayers/audioplayers.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'dart:async';
+
+// 导入你项目中的其他文件
 import 'AlertDeactivation.dart';
 import 'features/sos_alert/service/location_service.dart';
 import 'features/sos_alert/service/audio_recorder_service.dart';
@@ -33,11 +34,12 @@ class _GuardianModeScreenState extends State<GuardianModeScreen> {
   late LocationService _locationService;
   late AudioRecorderService _audioRecorder;
 
+  StreamSubscription? _alertStatusSubscription;
+
   final pinController = TextEditingController();
   final String safePin = "0000";
   final String duressPin = "1234";
 
-  // late String guardId; // 不再需要，因为服务不再依赖它
   bool _isDuressExit = false;
 
   @override
@@ -45,153 +47,197 @@ class _GuardianModeScreenState extends State<GuardianModeScreen> {
     super.initState();
     final currentUser = FirebaseAuth.instance.currentUser;
     if (currentUser == null) return;
-    
-    // --- 核心修改在这里 ---
 
-    // 1. 位置共享服务现在更新的是 alert 文档，而不是 guard 文档
-    _locationService = LocationService(widget.alertId, isAlert: true); // 👈 传递 alertId
+    _locationService = LocationService(widget.alertId, isAlert: true);
     _locationService.startSharingLocation();
 
-    // 2. 录音服务现在把录音上传到 alert 的子集合里
-    _audioRecorder = AudioRecorderService(widget.alertId, isAlert: true); // 👈 传递 alertId
+    _audioRecorder = AudioRecorderService(widget.alertId, isAlert: true);
     _audioRecorder.initRecorder().then((_) => _audioRecorder.startRecording());
 
-    // 3. 不再需要监听 guard 文档，因为地图上只需要用户的位置
-    //    如果需要同时显示 guard 位置，需要另外的 LocationService 实例来更新 guard 文档
-    
-    // 监听用户位置（现在由 LocationService 实时更新）
-    FirebaseFirestore.instance
+    _alertStatusSubscription = FirebaseFirestore.instance
         .collection('alerts')
         .doc(widget.alertId)
         .snapshots()
         .listen((doc) {
-      if (doc.exists && doc.data() != null) {
-        final data = doc.data()!;
-        if (data['latitude'] != null && data['longitude'] != null) {
-          final LatLng userLocation = LatLng(data['latitude'], data['longitude']);
+      if (!mounted || !doc.exists || doc.data() == null) return;
+
+      final data = doc.data()!;
+      final status = data['status'];
+      
+      // ✅ 监听器现在只负责处理 Guard 完成任务的情况
+      if (status == 'completed') {
+        // 立即停止服务
+        _audioRecorder.stopAndUpload();
+        _locationService.stopSharingLocation();
+
+        final navContext = context;
+        ScaffoldMessenger.of(navContext).showSnackBar(const SnackBar(
+          content: Text("Alert has been resolved by the guard."),
+          backgroundColor: Colors.green,
+        ));
+        
+        Future.delayed(const Duration(milliseconds: 1500), () {
           if (mounted) {
-            setState(() {
-              _markers.clear(); // 每次都清理标记，避免重复
-              _markers.add(Marker(
-                markerId: const MarkerId('user_location'),
-                position: userLocation,
-                icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueRed),
-                infoWindow: InfoWindow(
-                    title: data['status'] == 'pending' || data['duress'] == true
-                        ? "Active Emergency"
-                        : "Ended"),
-              ));
-              _mapController?.animateCamera(CameraUpdate.newLatLng(userLocation));
-            });
+            Navigator.of(navContext).pop();
           }
-        }
+        });
+        return;
+      }
+
+      // 更新地图标记
+      if (data['latitude'] != null && data['longitude'] != null) {
+        final LatLng userLocation = LatLng(data['latitude'], data['longitude']);
+        setState(() {
+          _markers.clear();
+          _markers.add(Marker(
+            markerId: const MarkerId('user_location'),
+            position: userLocation,
+            icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueRed),
+            infoWindow: InfoWindow(
+                title: data['duress'] == true
+                    ? "Active DURESS"
+                    : "Active Emergency"),
+          ));
+          _mapController?.animateCamera(CameraUpdate.newLatLng(userLocation));
+        });
       }
     });
   }
 
+  // ✅ 核心修改：按钮点击事件现在全权负责处理 PIN 码的退出逻辑
+  Future<void> _onDeactivatePressed() async {
+    final result = await showDeactivationDialog(
+      context,
+      pinController,
+      safePin,
+      duressPin,
+      widget.audioPlayer,
+      alertId: widget.alertId,
+      // onDeactivate 仍然需要，因为 dialog 内部不知道要停止哪个 location service 实例
+      onDeactivate: () async => await _locationService.stopSharingLocation(),
+    );
+
+    if (!mounted) return;
+
+    if (result == 'safe') {
+      // ✅ 用户输入了 safe pin，我们在这里直接处理，不再依赖监听器
+      // 1. 停止录音服务
+      await _audioRecorder.stopAndUpload();
+
+      // 2. 显示提示
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+        content: Text("✅ Alert genuinely cancelled."),
+        backgroundColor: Colors.green,
+      ));
+      
+      // 3. 延迟后退出
+      Future.delayed(const Duration(milliseconds: 500), () {
+        if (mounted) Navigator.of(context).pop();
+      });
+
+    } else if (result == 'duress') {
+      // 胁迫模式是特殊情况，需要立即退出，并保持后台服务运行
+      setState(() {
+        _isDuressExit = true;
+      });
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+        backgroundColor: Colors.orange,
+        content: Text("✅ Alert appears cancelled. Security notified of duress."),
+      ));
+      if (mounted) Navigator.of(context).pop();
+    }
+  }
+
   @override
   void dispose() {
+    _alertStatusSubscription?.cancel();
     pinController.dispose();
-    
+
     if (!_isDuressExit) {
       _audioRecorder.stopAndUpload();
-      _audioRecorder.dispose();
       _locationService.stopSharingLocation();
     }
-    
+    _audioRecorder.dispose();
+
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
-    // Build 方法没有变化，所以省略...
-    // 你可以保留你原来的 build 方法
-    return Scaffold(
-      backgroundColor: Colors.red.shade900,
-      body: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.all(24.0),
-          child: Column(
-            children: [
-              Column(
-                children: [
-                  Text(widget.initialMessage,
-                      textAlign: TextAlign.center,
-                      style: const TextStyle(
-                          fontSize: 24, color: Colors.white, fontWeight: FontWeight.bold)),
-                  const SizedBox(height: 16),
-                  const Text("Help is on the way...",
-                      style: TextStyle(fontSize: 18, color: Colors.white70)),
-                ],
-              ),
-              Expanded(
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
+    // Build 方法完全不变
+    return WillPopScope(
+      onWillPop: () async => false,
+      child: Scaffold(
+        backgroundColor: Colors.red.shade900,
+        body: SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.all(24.0),
+            child: Column(
+              children: [
+                Column(
                   children: [
-                    const BlinkingIcon(iconSize: 30),
-                    const SizedBox(height: 8),
-                    const Text("Recording in progress",
-                        style: TextStyle(
+                    Text(widget.initialMessage,
+                        textAlign: TextAlign.center,
+                        style: const TextStyle(
+                            fontSize: 24,
                             color: Colors.white,
-                            fontSize: 16,
-                            fontStyle: FontStyle.italic)),
+                            fontWeight: FontWeight.bold)),
                     const SizedBox(height: 16),
-                    Expanded(
-                      child: ClipRRect(
-                        borderRadius: BorderRadius.circular(16),
-                        child: GoogleMap(
-                          initialCameraPosition: const CameraPosition(
-                              target: LatLng(1.5583, 103.6375), zoom: 15),
-                          onMapCreated: (c) => _mapController = c,
-                          markers: _markers,
-                          myLocationEnabled: false,
-                        ),
-                      ),
-                    ),
+                    const Text("Help is on the way...",
+                        style:
+                            TextStyle(fontSize: 18, color: Colors.white70)),
                   ],
                 ),
-              ),
-              const SizedBox(height: 20),
-              ElevatedButton(
-                onPressed: () async {
-                  final result = await showDeactivationDialog(
-                    context,
-                    pinController,
-                    safePin,
-                    duressPin,
-                    widget.audioPlayer,
-                    alertId: widget.alertId,
-                    onDeactivate: () async =>
-                        await _locationService.stopSharingLocation(),
-                  );
-
-                  if (result == 'safe') {
-                    if (mounted) Navigator.of(context).pop();
-                  } else if (result == 'duress') {
-                    setState(() {
-                      _isDuressExit = true;
-                    });
-                    if (mounted) Navigator.of(context).pop();
-                  }
-                },
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.white,
-                  foregroundColor: Colors.red.shade900,
-                  minimumSize: const Size(double.infinity, 50),
+                Expanded(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      const BlinkingIcon(iconSize: 30),
+                      const SizedBox(height: 8),
+                      const Text("Recording in progress",
+                          style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 16,
+                              fontStyle: FontStyle.italic)),
+                      const SizedBox(height: 16),
+                      Expanded(
+                        child: ClipRRect(
+                          borderRadius: BorderRadius.circular(16),
+                          child: GoogleMap(
+                            initialCameraPosition: const CameraPosition(
+                                target: LatLng(1.5583, 103.6375), zoom: 15),
+                            onMapCreated: (c) => _mapController = c,
+                            markers: _markers,
+                            myLocationEnabled: false,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
-                child: const Text("Deactivate with PIN"),
-              ),
-            ],
+                const SizedBox(height: 20),
+                ElevatedButton(
+                  onPressed: _onDeactivatePressed,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.white,
+                    foregroundColor: Colors.red.shade900,
+                    minimumSize: const Size(double.infinity, 50),
+                  ),
+                  child: const Text("Deactivate with PIN"),
+                ),
+              ],
+            ),
           ),
         ),
+        floatingActionButton: FloatingActionButton(
+          onPressed: () =>
+              showSafetyManualDialog(context, widget.initialMessage),
+          backgroundColor: Colors.white,
+          foregroundColor: Colors.red.shade900,
+          child: const Icon(Icons.menu_book),
+        ),
+        floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
       ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: () => showSafetyManualDialog(context, widget.initialMessage),
-        backgroundColor: Colors.white,
-        foregroundColor: Colors.red.shade900,
-        child: const Icon(Icons.menu_book),
-      ),
-      floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
     );
   }
 }

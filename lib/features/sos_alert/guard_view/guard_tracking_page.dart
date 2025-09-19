@@ -8,7 +8,6 @@ import 'package:rxdart/rxdart.dart';
 import 'dart:async';
 import 'dart:convert';
 import 'package:http/http.dart' as http;
-
 import '../service/location_service.dart';
 
 class TrackingPage extends StatefulWidget {
@@ -35,16 +34,10 @@ class _TrackingPageState extends State<TrackingPage> {
   String _distanceRemaining = "...";
   String _durationRemaining = "...";
   Timer? _routeRecalculationTimer;
+  final String _apiKey = "AIzaSyALfVigfIlFFmcVIEy-5OGos42GViiQe-M"; // ⚠️ 替换为你的 Key
 
-  final String _apiKey = "YOUR_API_KEY_HERE"; // ⚠️ 替换为你的 Key
-
-  // --- 音频播放相关 ---
+  // --- 音频播放器实例 ---
   final AudioPlayer _audioPlayer = AudioPlayer();
-  String? _currentPlayingUrl;
-  Duration _currentPosition = Duration.zero;
-  Duration _totalDuration = Duration.zero;
-  StreamSubscription<Duration>? _positionSub;
-  StreamSubscription<PlayerState>? _playerStateSub;
 
   // --- 后台服务 ---
   late LocationService _guardLocationService;
@@ -54,32 +47,10 @@ class _TrackingPageState extends State<TrackingPage> {
     super.initState();
     _guardLocationService = LocationService(widget.guardId, isAlert: false);
     _guardLocationService.startSharingLocation();
-    _initAudioPlayerListeners();
     _startRouteRecalculation();
   }
-
-  void _initAudioPlayerListeners() {
-    _playerStateSub = _audioPlayer.playerStateStream.listen((state) {
-      if (!mounted) return;
-      if (state.processingState == ProcessingState.completed) {
-        setState(() {
-          _currentPlayingUrl = null;
-          _currentPosition = Duration.zero;
-        });
-      }
-    });
-
-    _positionSub = _audioPlayer.positionStream.listen((pos) {
-      if (!mounted) return;
-      setState(() => _currentPosition = pos);
-    });
-
-    _audioPlayer.durationStream.listen((dur) {
-      if (!mounted) return;
-      setState(() => _totalDuration = dur ?? Duration.zero);
-    });
-  }
-
+  
+  // (所有地图和导航相关的方法保持不变)
   void _startRouteRecalculation() {
     _routeRecalculationTimer?.cancel();
     _routeRecalculationTimer = Timer.periodic(const Duration(seconds: 20), (timer) {
@@ -88,25 +59,21 @@ class _TrackingPageState extends State<TrackingPage> {
   }
 
   Future<void> _updateRouteAndInfo() async {
-    if (_userPosition == null || _guardPosition == null || _apiKey.contains("YOUR_API_KEY_HERE")) return;
-
+    if (_userPosition == null || _guardPosition == null || _apiKey.contains("AIzaSyALfVigfIlFFmcVIEy-5OGos42GViiQe-M")) return;
     final url = Uri.parse(
       'https://maps.googleapis.com/maps/api/directions/json?'
       'origin=${_guardPosition!.latitude},${_guardPosition!.longitude}&'
       'destination=${_userPosition!.latitude},${_userPosition!.longitude}&'
       'mode=walking&key=$_apiKey',
     );
-
     try {
       final response = await http.get(url);
       if (response.statusCode != 200 || !mounted) return;
-
       final data = json.decode(response.body);
       if (data['status'] == 'OK' && data['routes'].isNotEmpty) {
         final route = data['routes'][0];
         final leg = route['legs'][0];
         final points = route['overview_polyline']['points'];
-
         setState(() {
           _polylines.clear();
           _polylines.add(Polyline(
@@ -126,7 +93,6 @@ class _TrackingPageState extends State<TrackingPage> {
 
   Future<void> _updateCameraBounds() async {
     if (_userPosition == null || _guardPosition == null || !_mapControllerCompleter.isCompleted) return;
-
     final controller = await _mapControllerCompleter.future;
     controller.animateCamera(
       CameraUpdate.newLatLngBounds(
@@ -162,7 +128,6 @@ class _TrackingPageState extends State<TrackingPage> {
         ],
       ),
     );
-
     if (confirmed == true) {
       await _guardLocationService.stopSharingLocation();
       await FirebaseFirestore.instance.collection('alerts').doc(widget.alertId).update({
@@ -173,30 +138,10 @@ class _TrackingPageState extends State<TrackingPage> {
       if (mounted) Navigator.of(context).pop();
     }
   }
-
-  Future<void> _playRecording(String url) async {
-    try {
-      if (_currentPlayingUrl == url) {
-        await _audioPlayer.pause();
-        setState(() => _currentPlayingUrl = null);
-      } else {
-        await _audioPlayer.stop();
-        await _audioPlayer.setAudioSource(AudioSource.uri(Uri.parse(url)));
-        await _audioPlayer.play();
-        setState(() => _currentPlayingUrl = url);
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Error playing audio: $e")));
-      }
-    }
-  }
-
+  
   @override
   void dispose() {
     _routeRecalculationTimer?.cancel();
-    _positionSub?.cancel();
-    _playerStateSub?.cancel();
     _audioPlayer.dispose();
     super.dispose();
   }
@@ -216,19 +161,23 @@ class _TrackingPageState extends State<TrackingPage> {
         stream: CombineLatestStream.combine2(alertStream, guardStream, (a, b) => [a, b]),
         builder: (context, snapshot) {
           if (!snapshot.hasData) return const Center(child: CircularProgressIndicator());
-
           final alertSnap = snapshot.data![0];
           final guardSnap = snapshot.data![1];
-
           if (!alertSnap.exists) return const Center(child: Text("Alert has been resolved or deleted."));
 
           final alertData = alertSnap.data() as Map<String, dynamic>;
           final guardData = guardSnap.data() as Map<String, dynamic>?;
-
           final status = alertData['status'] as String?;
 
           _userPosition = _extractLatLng(alertData);
           _guardPosition = _extractLatLng(guardData);
+
+          if (_userPosition != null && _guardPosition != null) {
+            if (_routeRecalculationTimer == null || !_routeRecalculationTimer!.isActive) {
+               _updateRouteAndInfo();
+               _startRouteRecalculation();
+            }
+          }
 
           return Column(
             children: [
@@ -274,11 +223,8 @@ class _TrackingPageState extends State<TrackingPage> {
         icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueBlue),
       ));
     }
-
     _updateCameraBounds();
-
     if (_userPosition == null) return const Center(child: Text("Waiting for user location..."));
-
     return GoogleMap(
       onMapCreated: (controller) {
         if (!_mapControllerCompleter.isCompleted) {
@@ -292,7 +238,7 @@ class _TrackingPageState extends State<TrackingPage> {
   }
 
   Widget _buildNavigationInfoCard(Map<String, dynamic> alertData) {
-    return Container(
+     return Container(
       padding: const EdgeInsets.all(12),
       color: Colors.blueGrey.shade50,
       child: Column(
@@ -337,15 +283,11 @@ class _TrackingPageState extends State<TrackingPage> {
             .snapshots(),
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Center(child: CircularProgressIndicator());
-          }
-          if (snapshot.hasError) {
-            return Center(child: Text("Error loading audio: ${snapshot.error}"));
+             return const Center(child: CircularProgressIndicator());
           }
           if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
             return const Center(child: Text("No audio recordings yet."));
           }
-
           final audioDocs = snapshot.data!.docs;
           return ListView.builder(
             itemCount: audioDocs.length,
@@ -353,69 +295,24 @@ class _TrackingPageState extends State<TrackingPage> {
               final audioData = audioDocs[index].data() as Map<String, dynamic>;
               final url = audioData['url'] as String?;
               final uploadedAt = (audioData['uploadedAt'] as Timestamp?)?.toDate();
-              final isThisPlaying = _currentPlayingUrl == url;
+              
+              if(url == null) return const SizedBox.shrink();
 
-              return Card(
-                margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                child: Column(
-                  children: [
-                    ListTile(
-                      leading: const Icon(Icons.mic),
-                      title: Text(uploadedAt != null
-                          ? "Recording at ${TimeOfDay.fromDateTime(uploadedAt).format(context)}"
-                          : "Recording"),
-                      trailing: IconButton(
-                        icon: Icon(isThisPlaying ? Icons.pause_circle_filled : Icons.play_circle_fill, size: 30),
-                        onPressed: url != null ? () => _playRecording(url) : null,
-                      ),
-                    ),
-                    if (isThisPlaying)
-                      Column(
-                        children: [
-                          Slider(
-                            min: 0,
-                            max: _totalDuration.inMilliseconds > 0
-                                ? _totalDuration.inMilliseconds.toDouble()
-                                : 1.0,
-                            value: _currentPosition.inMilliseconds
-                                .clamp(0, _totalDuration.inMilliseconds)
-                                .toDouble(),
-                            onChanged: (value) async {
-                              await _audioPlayer.seek(Duration(milliseconds: value.toInt()));
-                            },
-                          ),
-                          Padding(
-                            padding: const EdgeInsets.symmetric(horizontal: 24.0).copyWith(bottom: 8),
-                            child: Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                              children: [
-                                Text(_formatDuration(_currentPosition)),
-                                Text(_formatDuration(_totalDuration)),
-                              ],
-                            ),
-                          ),
-                        ],
-                      ),
-                  ],
-                ),
+              return AudioPlayerTile(
+                key: ValueKey(url),
+                audioPlayer: _audioPlayer,
+                url: url,
+                uploadedAt: uploadedAt,
               );
             },
           );
         });
   }
-
-  String _formatDuration(Duration d) {
-    String twoDigits(int n) => n.toString().padLeft(2, "0");
-    final minutes = twoDigits(d.inMinutes.remainder(60));
-    final seconds = twoDigits(d.inSeconds.remainder(60));
-    return "$minutes:$seconds";
-  }
-
+  
   List<LatLng> _decodePolyline(String encoded) {
     List<LatLng> points = [];
     int index = 0, len = encoded.length;
     int lat = 0, lng = 0;
-
     while (index < len) {
       int b, shift = 0, result = 0;
       do {
@@ -425,7 +322,6 @@ class _TrackingPageState extends State<TrackingPage> {
       } while (b >= 0x20);
       int dlat = ((result & 1) != 0 ? ~(result >> 1) : (result >> 1));
       lat += dlat;
-
       shift = 0;
       result = 0;
       do {
@@ -435,10 +331,129 @@ class _TrackingPageState extends State<TrackingPage> {
       } while (b >= 0x20);
       int dlng = ((result & 1) != 0 ? ~(result >> 1) : (result >> 1));
       lng += dlng;
-
       points.add(LatLng(lat / 1E5, lng / 1E5));
     }
-
     return points;
+  }
+}
+
+// =========================================================================
+// =================== AUDIO PLAYER TILE WIDGET (最终修正版) ===================
+// =========================================================================
+class AudioPlayerTile extends StatefulWidget {
+  final AudioPlayer audioPlayer;
+  final String url;
+  final DateTime? uploadedAt;
+
+  const AudioPlayerTile({
+    super.key,
+    required this.audioPlayer,
+    required this.url,
+    this.uploadedAt,
+  });
+
+  @override
+  State<AudioPlayerTile> createState() => _AudioPlayerTileState();
+}
+
+class _AudioPlayerTileState extends State<AudioPlayerTile> {
+
+  @override
+  Widget build(BuildContext context) {
+    return StreamBuilder<PlayerState>(
+      stream: widget.audioPlayer.playerStateStream,
+      builder: (context, snapshot) {
+        final playerState = snapshot.data;
+        final processingState = playerState?.processingState;
+        final isPlaying = playerState?.playing ?? false;
+
+        // 判断当前播放的 URL 是否是这个 Tile 的 URL
+        final isCurrentSource = widget.audioPlayer.audioSource?.toString().contains(widget.url) ?? false;
+
+        final isLoading = isCurrentSource && (processingState == ProcessingState.loading || processingState == ProcessingState.buffering);
+        final isThisTilePlaying = isCurrentSource && isPlaying;
+
+        return Card(
+          margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+          shape: RoundedRectangleBorder(
+            side: BorderSide(
+              color: isCurrentSource ? Colors.blueAccent : Colors.transparent,
+              width: 2,
+            ),
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: Column(
+            children: [
+              ListTile(
+                leading: const Icon(Icons.mic),
+                title: Text(widget.uploadedAt != null
+                    ? "Recording at ${TimeOfDay.fromDateTime(widget.uploadedAt!).format(context)}"
+                    : "Recording"),
+                trailing: isLoading
+                  ? const SizedBox(width: 24, height: 24, child: CircularProgressIndicator(strokeWidth: 2))
+                  : IconButton(
+                      icon: Icon(
+                        isThisTilePlaying ? Icons.pause_circle_filled : Icons.play_circle_fill,
+                        size: 30,
+                        color: isThisTilePlaying ? Colors.blueAccent : null,
+                      ),
+                      // 👈 ✅ 最终的、完全非阻塞的播放逻辑
+                      onPressed: () {
+                        if (isThisTilePlaying) {
+                          widget.audioPlayer.pause();
+                        } else if (isCurrentSource) {
+                          widget.audioPlayer.play();
+                        } else {
+                          // 先停止当前的播放，然后异步地设置源和播放
+                          // UI 会通过上面的 stream 自动更新为 loading 状态
+                          widget.audioPlayer.stop();
+                          widget.audioPlayer.setAudioSource(AudioSource.uri(Uri.parse(widget.url)));
+                          widget.audioPlayer.play();
+                        }
+                      },
+                    ),
+              ),
+              if (isCurrentSource)
+                StreamBuilder<Duration>(
+                  stream: widget.audioPlayer.positionStream,
+                  builder: (context, positionSnapshot) {
+                    final position = positionSnapshot.data ?? Duration.zero;
+                    final duration = widget.audioPlayer.duration ?? Duration.zero;
+                    return Column(
+                      children: [
+                        Slider(
+                          min: 0,
+                          max: duration.inMilliseconds > 0 ? duration.inMilliseconds.toDouble() : 1.0,
+                          value: position.inMilliseconds.clamp(0, duration.inMilliseconds).toDouble(),
+                          onChanged: (value) {
+                            widget.audioPlayer.seek(Duration(milliseconds: value.toInt()));
+                          },
+                        ),
+                        Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 24.0).copyWith(bottom: 8),
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Text(_formatDuration(position)),
+                              Text(_formatDuration(duration)),
+                            ],
+                          ),
+                        ),
+                      ],
+                    );
+                  }
+                ),
+            ],
+          ),
+        );
+      }
+    );
+  }
+
+  String _formatDuration(Duration d) {
+    String twoDigits(int n) => n.toString().padLeft(2, "0");
+    final minutes = twoDigits(d.inMinutes.remainder(60));
+    final seconds = twoDigits(d.inSeconds.remainder(60));
+    return "$minutes:$seconds";
   }
 }

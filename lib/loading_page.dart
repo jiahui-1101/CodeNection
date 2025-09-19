@@ -185,7 +185,7 @@ class _LoadingPageState extends State<LoadingPage>
         List<QueryDocumentSnapshot> otherUsers = [];
 
         for (var doc in snapshot.docs) {
-          final data = doc.data() as Map<String, dynamic>;
+          final data = doc.data();
           if (data['status'] == 'searching') {
             searchingUsers.add(doc);
           } else {

@@ -54,7 +54,7 @@ dependencies:
   record: ^6.1.1
   rxdart: ^0.27.7 
   just_audio: ^0.9.36 
-  rxdart: ^0.27.7
+
   flutter_compass: ^0.8.0
 
 
