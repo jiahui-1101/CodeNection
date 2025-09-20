@@ -10,7 +10,7 @@ import 'features/sos_alert/service/audio_recorder_service.dart';
 import 'BlinkingIcon.dart';
 import 'GuardianModeSafetyManual.dart';
 
-class GuardianModeScreen extends StatefulWidget {
+class GuardianModeScreen extends StatefulWidget { //latest,background location, audio recording ok in duress mode
   final String initialMessage;
   final String alertId;
   final AudioPlayer audioPlayer;

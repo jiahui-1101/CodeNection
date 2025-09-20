@@ -4,10 +4,10 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:image_picker/image_picker.dart';
-import 'LoginPage.dart';
+import 'features/sos_alert/service/firebase_api.dart';
 
-class ManagementSettingsPage extends StatefulWidget {
-  const ManagementSettingsPage({super.key});
+class ManagementSettingsPage extends StatefulWidget {  //latest,logout ok
+  const ManagementSettingsPage({super.key});  
 
   @override
   State<ManagementSettingsPage> createState() => _ManagementSettingsPageState();
@@ -109,16 +109,31 @@ class _ManagementSettingsPageState extends State<ManagementSettingsPage> {
     }
   }
 
-  Future<void> _signOut() async {
+  Future<void> _logout(BuildContext navContext) async {
+    showDialog(
+      context: navContext,
+      barrierDismissible: false,
+      builder: (context) => const Center(child: CircularProgressIndicator()),
+    );
+
     try {
+      await FirebaseApi().unsubscribeFromAlerts();
       await _auth.signOut();
-      _currentUser = null;
+      await _clearAllSettings();
+      if (navContext.mounted) {
+          Navigator.of(navContext).popUntil((route) => route.isFirst);
+
+      }
+
     } catch (e) {
-      print('Error signing out: $e');
-      rethrow;
+      if (navContext.mounted) {
+         Navigator.of(navContext, rootNavigator: true).pop();
+         ScaffoldMessenger.of(navContext).showSnackBar(
+            SnackBar(content: Text("Logout failed: $e"))
+         );
+      }
     }
   }
-
   // Pick image from gallery or camera
   Future<void> _pickImage(ImageSource source) async {
     try {
@@ -518,39 +533,22 @@ Container(
   void _showLogoutDialog(BuildContext context) {
     showDialog(
       context: context,
-      builder: (BuildContext context) {
+      builder: (BuildContext dialogContext) {
         return AlertDialog(
           title: const Text('Log Out'),
           content: const Text('Are you sure you want to log out?'),
           actions: [
             TextButton(
               onPressed: () {
-                Navigator.of(context).pop();
+                Navigator.of(dialogContext).pop();
               },
               child: const Text('Cancel'),
             ),
             TextButton(
-              onPressed: () async {
-                try {
-                  await _signOut();
-                  _clearAllSettings();
-                  Navigator.of(context).pop();
-                  Navigator.of(context).pushAndRemoveUntil(
-                    MaterialPageRoute(builder: (context) => const LoginPage()),
-                    (Route<dynamic> route) => false,
-                  );
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Logged out successfully')),
-                  );
-                } catch (e) {
-                  Navigator.of(context).pop();
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text('Failed to log out: ${e.toString()}'),
-                      backgroundColor: Colors.red,
-                    ),
-                  );
-                }
+              onPressed: () {
+                 final buildContext = context; 
+                Navigator.of(dialogContext).pop();
+                _logout(buildContext);
               },
               child: const Text('Log Out', style: TextStyle(color: Colors.red)),
             ),
