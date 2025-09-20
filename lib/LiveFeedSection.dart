@@ -49,7 +49,7 @@ class LiveFeedSection extends StatelessWidget {
             stream: CombineLatestStream.list([
               FirebaseFirestore.instance
                   .collection('reports')
-                  .where('uid', isEqualTo: user.uid)
+                  .where('userId', isEqualTo: user.uid)
                   .snapshots(),
               FirebaseFirestore.instance
                   .collection('alerts')
@@ -132,13 +132,16 @@ class LiveFeedSection extends StatelessWidget {
                 final data = doc.data() as Map<String, dynamic>;
                 final timestamp = data['timestamp'] ?? Timestamp.now();
                 final text = data['status'] ?? 'No status';
+                final title = data['title'] ?? 'No title';
+
                 allData.add({
-                  'title': 'Report',
                   'icon': Icons.collections_bookmark,
                   'color': Colors.orange,
-                  'text': text,
+                  'title': title, // ✅ show title
+                  'text': text, // ✅ show status
                   'time': _formatTime(timestamp),
                   'timestamp': timestamp,
+                  'type': 'Report',
                 });
               }
 
@@ -146,12 +149,16 @@ class LiveFeedSection extends StatelessWidget {
               for (var doc in alertsSnap.docs) {
                 final data = doc.data() as Map<String, dynamic>;
                 final timestamp = data['timestamp'] ?? Timestamp.now();
-                final text = data['status'] ?? 'No status';
+                final status = data['status'] ?? 'No status';
+                final alertTitle = data['title'] ?? 'No title';
+
                 allData.add({
-                  'title': 'Alert',
                   'icon': Icons.notifications_active,
                   'color': Colors.red,
-                  'text': text,
+                  'title':
+                      alertTitle, // 🔹 This will still be shown as the "section title"
+                  'text':
+                      "Status: $status", // 🔹 Append status in the text field
                   'time': _formatTime(timestamp),
                   'timestamp': timestamp,
                 });
