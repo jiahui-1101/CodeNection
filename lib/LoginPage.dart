@@ -5,8 +5,9 @@ import 'package:hello_flutter/MainScreen.dart';
 import 'package:hello_flutter/CallManagementPage.dart';
 import 'RegisterPage.dart';
 import 'title.dart';
+// import 'features/sos_alert/service/firebase_api.dart';
 
-class LoginPage extends StatefulWidget {
+class LoginPage extends StatefulWidget {  //latest,no need repeat login if already logged in
   const LoginPage({super.key});
 
   @override
@@ -21,53 +22,43 @@ class _LoginPageState extends State<LoginPage> {
 
   bool _loading = false;
 
-  // List of special emails that should go to CallManagementPage
   final List<String> callManagementUsers = [
     'utmbright@gmail.com',
     'nextlevel@gmail.com',
     'crayonshincan531@gmail.com',
   ];
 
-  // 🔹 Email & Password login
   Future<void> _loginWithEmail() async {
     setState(() => _loading = true);
     try {
-      UserCredential userCredential = await _auth.signInWithEmailAndPassword(
+        await _auth.signInWithEmailAndPassword(
         email: _emailController.text.trim(),
         password: _passwordController.text.trim(),
       );
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("✅ Login successful")),
-      );
+    } on FirebaseAuthException catch (e) {
 
-      final email = userCredential.user?.email ?? '';
-      if (callManagementUsers.contains(email)) {
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(builder: (_) => const CallManagementPage()),
-        );
-      } else {
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(builder: (_) => const MainScreen()),
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text("❌ Login failed: ${e.message}")),
         );
       }
-    } on FirebaseAuthException catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("❌ Login failed: ${e.message}")),
-      );
     } finally {
-      setState(() => _loading = false);
+
+      if (mounted) {
+        setState(() => _loading = false);
+      }
     }
   }
 
-  // 🔹 Google login
   Future<void> _loginWithGoogle() async {
     setState(() => _loading = true);
     try {
       final GoogleSignInAccount? googleUser = await GoogleSignIn().signIn();
-      if (googleUser == null) return; // cancelled
+      if (googleUser == null) {
+        if (mounted) setState(() => _loading = false);
+        return;
+      }
 
       final GoogleSignInAuthentication googleAuth =
           await googleUser.authentication;
@@ -77,38 +68,24 @@ class _LoginPageState extends State<LoginPage> {
         idToken: googleAuth.idToken,
       );
 
-      UserCredential userCredential =
-          await _auth.signInWithCredential(credential);
+      await _auth.signInWithCredential(credential);
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("✅ Logged in with Google")),
-      );
-
-      final email = userCredential.user?.email ?? '';
-      if (callManagementUsers.contains(email)) {
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(builder: (_) => const CallManagementPage()),
-        );
-      } else {
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(builder: (_) => const MainScreen()),
+     } on FirebaseAuthException catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text("❌ Google login failed: ${e.message}")),
         );
       }
-    } on FirebaseAuthException catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("❌ Google login failed: ${e.message}")),
-      );
     } finally {
-      setState(() => _loading = false);
+      if (mounted) {
+        setState(() => _loading = false);
+      }
     }
   }
-
-  // 🔹 Password reset
   Future<void> _resetPassword(String email) async {
     try {
       await _auth.sendPasswordResetEmail(email: email);
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text("📧 Password reset link sent to your email"),
@@ -116,13 +93,13 @@ class _LoginPageState extends State<LoginPage> {
         ),
       );
     } catch (e) {
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text("❌ Failed to send reset link: $e")),
       );
     }
   }
 
-  // 🔹 Forgot Password Dialog
   void _showForgotPasswordDialog() {
     showDialog(
       context: context,
@@ -163,8 +140,9 @@ class _LoginPageState extends State<LoginPage> {
                     Expanded(
                       child: ElevatedButton(
                         onPressed: () {
+                          final email = _resetEmailController.text.trim();
                           Navigator.of(context).pop();
-                          _resetPassword(_resetEmailController.text.trim());
+                          _resetPassword(email);
                         },
                         style: ElevatedButton.styleFrom(
                           backgroundColor: const Color(0xFF0f3460),
@@ -226,93 +204,95 @@ class _LoginPageState extends State<LoginPage> {
                     ],
                   ),
                   padding: const EdgeInsets.all(24),
-                  child: Column(
-                    children: [
-                      TextField(
-                        controller: _emailController,
-                        decoration: InputDecoration(
-                          labelText: 'Email',
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          prefixIcon: const Icon(Icons.email),
-                        ),
-                      ),
-                      const SizedBox(height: 20),
-                      TextField(
-                        controller: _passwordController,
-                        obscureText: true,
-                        decoration: InputDecoration(
-                          labelText: 'Password',
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          prefixIcon: const Icon(Icons.lock),
-                        ),
-                      ),
-                      const SizedBox(height: 16),
-                      Align(
-                        alignment: Alignment.centerRight,
-                        child: TextButton(
-                          onPressed: _showForgotPasswordDialog,
-                          child: const Text('Forgot Password?'),
-                        ),
-                      ),
-                      const SizedBox(height: 16),
-                      SizedBox(
-                        width: double.infinity,
-                        height: 56,
-                        child: ElevatedButton(
-                          onPressed: _loading ? null : _loginWithEmail,
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: const Color(0xFF0f3460),
-                            shape: RoundedRectangleBorder(
+                  child: SingleChildScrollView(
+                    child: Column(
+                      children: [
+                        TextField(
+                          controller: _emailController,
+                          decoration: InputDecoration(
+                            labelText: 'Email',
+                            border: OutlineInputBorder(
                               borderRadius: BorderRadius.circular(12),
                             ),
+                            prefixIcon: const Icon(Icons.email),
                           ),
-                          child: _loading
-                              ? const CircularProgressIndicator(
-                                  color: Colors.white,
-                                )
-                              : const Text(
-                                  'LOGIN',
-                                  style: TextStyle(
-                                    fontSize: 18,
-                                    fontWeight: FontWeight.bold,
-                                    color: Colors.white,
-                                  ),
-                                ),
                         ),
-                      ),
-                      const SizedBox(height: 24),
-                      const Row(
-                        children: [
-                          Expanded(child: Divider(color: Colors.grey)),
-                          Padding(
-                            padding: EdgeInsets.symmetric(horizontal: 8.0),
-                            child: Text(
-                              'Or login with',
-                              style: TextStyle(color: Colors.grey),
+                        const SizedBox(height: 20),
+                        TextField(
+                          controller: _passwordController,
+                          obscureText: true,
+                          decoration: InputDecoration(
+                            labelText: 'Password',
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(12),
                             ),
+                            prefixIcon: const Icon(Icons.lock),
                           ),
-                          Expanded(child: Divider(color: Colors.grey)),
-                        ],
-                      ),
-                      const SizedBox(height: 24),
-                      SizedBox(
-                        width: double.infinity,
-                        height: 56,
-                        child: OutlinedButton.icon(
-                          onPressed: _loading ? null : _loginWithGoogle,
-                          icon: const Icon(
-                            Icons.g_mobiledata,
-                            color: Colors.red,
-                            size: 24,
-                          ),
-                          label: const Text('Sign in with Google'),
                         ),
-                      ),
-                    ],
+                        const SizedBox(height: 16),
+                        Align(
+                          alignment: Alignment.centerRight,
+                          child: TextButton(
+                            onPressed: _showForgotPasswordDialog,
+                            child: const Text('Forgot Password?'),
+                          ),
+                        ),
+                        const SizedBox(height: 16),
+                        SizedBox(
+                          width: double.infinity,
+                          height: 56,
+                          child: ElevatedButton(
+                            onPressed: _loading ? null : _loginWithEmail,
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: const Color(0xFF0f3460),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                            ),
+                            child: _loading
+                                ? const CircularProgressIndicator(
+                                    color: Colors.white,
+                                  )
+                                : const Text(
+                                    'LOGIN',
+                                    style: TextStyle(
+                                      fontSize: 18,
+                                      fontWeight: FontWeight.bold,
+                                      color: Colors.white,
+                                    ),
+                                  ),
+                          ),
+                        ),
+                        const SizedBox(height: 24),
+                        const Row(
+                          children: [
+                            Expanded(child: Divider(color: Colors.grey)),
+                            Padding(
+                              padding: EdgeInsets.symmetric(horizontal: 8.0),
+                              child: Text(
+                                'Or login with',
+                                style: TextStyle(color: Colors.grey),
+                              ),
+                            ),
+                            Expanded(child: Divider(color: Colors.grey)),
+                          ],
+                        ),
+                        const SizedBox(height: 24),
+                        SizedBox(
+                          width: double.infinity,
+                          height: 56,
+                          child: OutlinedButton.icon(
+                            onPressed: _loading ? null : _loginWithGoogle,
+                            icon: const Icon(
+                              Icons.g_mobiledata,
+                              color: Colors.red,
+                              size: 24,
+                            ),
+                            label: const Text('Sign in with Google'),
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
                 ),
               ),

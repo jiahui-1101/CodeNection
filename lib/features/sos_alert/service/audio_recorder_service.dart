@@ -24,9 +24,9 @@ class AudioRecorderService {
 
   Future<void> startRecording() async {
     if (_recorder == null || _isRecording) return;
-    
+
     _isRecording = true;
-    _cycleRecordingChunk(); 
+    _cycleRecordingChunk();
 
     _recordingTimer = Timer.periodic(const Duration(seconds: 10), (timer) {
       if (!_isRecording) {
@@ -36,7 +36,7 @@ class AudioRecorderService {
       _cycleRecordingChunk();
     });
   }
-  
+
   Future<void> _cycleRecordingChunk() async {
     if (_recorder == null || !_isRecording) return;
 
@@ -44,12 +44,13 @@ class AudioRecorderService {
     if (_recorder!.isRecording) {
       path = await _recorder!.stopRecorder();
     }
-    
+
     if (path != null) {
       final file = File(path);
       if (await file.exists()) {
         try {
-          final storageFileName = "${DateTime.now().millisecondsSinceEpoch}.m4a";
+          final storageFileName =
+              "${DateTime.now().millisecondsSinceEpoch}.m4a";
           final ref = FirebaseStorage.instance
               .ref("alert_audio/$documentId/$storageFileName");
 
@@ -60,17 +61,19 @@ class AudioRecorderService {
           TaskSnapshot snapshot = await uploadTask;
           final downloadUrl = await snapshot.ref.getDownloadURL();
 
-          await FirebaseFirestore.instance
-              .collection(collectionPath)
-              .doc(documentId)
-              .collection("audio")
-              .add({
-            "url": downloadUrl,
-            "uploadedAt": FieldValue.serverTimestamp(),
-          });
-          
+          if (_recorder != null) {
+            await FirebaseFirestore.instance
+                .collection(collectionPath)
+                .doc(documentId)
+                .collection("audio")
+                .add({
+              "url": downloadUrl,
+              "uploadedAt": FieldValue.serverTimestamp(),
+            });
+          }
+
           print("✅ Audio chunk uploaded successfully: $downloadUrl");
-          
+
           await file.delete();
         } catch (e) {
           print("❌ Failed to upload audio chunk: $e");
@@ -78,20 +81,26 @@ class AudioRecorderService {
       }
     }
 
-    if (_isRecording) {
+    if (_isRecording && _recorder != null) {
       Directory tempDir = await getTemporaryDirectory();
       final newFileName = '${DateTime.now().millisecondsSinceEpoch}.m4a';
       _currentFilePath = '${tempDir.path}/$newFileName';
-      await _recorder!.startRecorder(
-        toFile: _currentFilePath,
-        codec: Codec.aacMP4, // ✅ 用 AAC in MP4 容器
-      );
+
+      try {
+        await _recorder!.startRecorder(
+          toFile: _currentFilePath,
+          codec: Codec.aacMP4,
+        );
+      } catch (e) {
+        print("❌ Error starting recorder, it might have been disposed: $e");
+        _isRecording = false; 
+      }
     }
   }
 
   Future<void> stopAndUpload() async {
     if (!_isRecording) return;
-    _isRecording = false; 
+    _isRecording = false;
     _recordingTimer?.cancel();
 
     await _cycleRecordingChunk();
@@ -99,7 +108,8 @@ class AudioRecorderService {
 
   Future<void> dispose() async {
     _recordingTimer?.cancel();
-    if (_isRecording) {
+    if (_isRecording) {  
+      _isRecording = false; 
       await stopAndUpload();
     }
     await _recorder?.closeRecorder();
