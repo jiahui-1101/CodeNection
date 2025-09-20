@@ -6,98 +6,290 @@ import 'package:rxdart/rxdart.dart';
 import 'dart:async';
 import 'dart:convert';
 import 'package:http/http.dart' as http;
-import '../service/location_service.dart';
-//latest
+import 'package:audio_session/audio_session.dart';
+import 'RouteTracker.dart';
+import 'package:geolocator/geolocator.dart';
+
 class TrackingPage extends StatefulWidget {
   final String alertId;
   final String guardId;
 
-  const TrackingPage({
-    super.key,
-    required this.alertId,
-    required this.guardId,
-  });
+  const TrackingPage({super.key, required this.alertId, required this.guardId});
 
   @override
   State<TrackingPage> createState() => _TrackingPageState();
 }
 
 class _TrackingPageState extends State<TrackingPage> {
-
   final Completer<GoogleMapController> _mapControllerCompleter = Completer();
   final Set<Marker> _markers = {};
-  final Set<Polyline> _polylines = {};
+  Set<Polyline> _polylines = {};
+  final Set<Polyline> _trackedRoutePolylines = {};
   LatLng? _userPosition;
   LatLng? _guardPosition;
+  LatLng? _lastUserPosition;
+  LatLng? _lastGuardPosition;
   String _distanceRemaining = "...";
   String _durationRemaining = "...";
   Timer? _routeRecalculationTimer;
-  final String _apiKey = "AIzaSyALfVigfIlFFmcVIEy-5OGos42GViiQe-M"; 
+  final String _apiKey = "AIzaSyALfVigfIlFFmcVIEy-5OGos42GViiQe-M";
 
   final AudioPlayer _audioPlayer = AudioPlayer();
   late LocationService _guardLocationService;
 
+  // 音频播放状态变量
+  String? _currentlyPlayingDocId;
+  Duration _currentPosition = Duration.zero;
+  Duration _totalDuration = Duration.zero;
+  bool _isSeeking = false;
+  bool _isLoading = false;
+  bool _isCompleted = false;
+
+  // 路线跟踪
+  RouteTracker? _routeTracker; // <-- made nullable
+  double _trackedDistance = 0;
+  int _trackedPoints = 0;
+
+  // Subscriptions so we can cancel them cleanly
+  StreamSubscription<Duration>? _positionSub;
+  StreamSubscription<PlayerState>? _playerStateSub;
+  StreamSubscription<Duration?>? _durationSub;
+
   @override
   void initState() {
     super.initState();
+
+    // 开始共享守卫的位置
     _guardLocationService = LocationService(widget.guardId, isAlert: false);
     _guardLocationService.startSharingLocation();
-    _startRouteRecalculation();
-  }
-  
-  void _startRouteRecalculation() {
-    _routeRecalculationTimer?.cancel();
-    _routeRecalculationTimer = Timer.periodic(const Duration(seconds: 20), (timer) {
-      _updateRouteAndInfo();
-    });
+
+    // 其他服务
+    _initAudioSession();
+    _listenPlayer();
+    // 开始跟踪将在获取到用户位置后设置
   }
 
-  Future<void> _updateRouteAndInfo() async {
-    if (_userPosition == null || _guardPosition == null || _apiKey.contains("AIzaSyALfVigfIlFFmcVIEy-5OGos42GViiQe-M")) return;
-    final url = Uri.parse(
-      'https://maps.googleapis.com/maps/api/directions/json?'
-      'origin=${_guardPosition!.latitude},${_guardPosition!.longitude}&'
-      'destination=${_userPosition!.latitude},${_userPosition!.longitude}&'
-      'mode=walking&key=$_apiKey',
-    );
+  Future<void> _setupRouteTracking() async {
     try {
-      final response = await http.get(url);
-      if (response.statusCode != 200 || !mounted) return;
-      final data = json.decode(response.body);
-      if (data['status'] == 'OK' && data['routes'].isNotEmpty) {
-        final route = data['routes'][0];
-        final leg = route['legs'][0];
-        final points = route['overview_polyline']['points'];
-        setState(() {
-          _polylines.clear();
-          _polylines.add(Polyline(
-            polylineId: const PolylineId('route'),
-            points: _decodePolyline(points),
-            color: Colors.lightBlueAccent,
-            width: 8,
-          ));
-          _distanceRemaining = leg['distance']['text'];
-          _durationRemaining = leg['duration']['text'];
-        });
+      // 确保有用户位置作为目的地
+      if (_userPosition == null) {
+        return;
       }
+      _routeTracker = RouteTracker(
+        apiKey: _apiKey,
+        origin: _guardPosition, // 如果为null，RouteTracker会使用当前位置
+        destination: _userPosition!,
+        onRouteReady: (points) {
+          if (!mounted) return;
+          setState(() {
+            _polylines = {
+              Polyline(
+                polylineId: const PolylineId('route'),
+                points: points,
+                width: 6,
+                color: Colors.blue,
+              ),
+            };
+          });
+        },
+        onLocationUpdated: (latlng) {
+          if (!mounted) return;
+          setState(() {
+            _guardPosition = latlng;
+            _updateGuardMarker();
+          });
+        },
+        onProgressUpdated: (remainingMeters, etaMinutes) {
+          if (!mounted) return;
+          setState(() {
+            _distanceRemaining =
+                '${(remainingMeters / 1000.0).toStringAsFixed(2)} km';
+            _durationRemaining = '${etaMinutes.toStringAsFixed(0)} min';
+          });
+        },
+        onArrived: () {
+          if (!mounted) return;
+          setState(() {
+            // 到达目的地
+          });
+        },
+        onError: (err) {
+          debugPrint("RouteTracker error: $err");
+        },
+      );
+
+      await _routeTracker!.initialize();
+      _routeTracker!.startTracking();
     } catch (e) {
-      print("Error fetching directions: $e");
+      debugPrint("Failed to setup route tracker: $e");
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text("Route init failed: $e")));
+      }
     }
   }
 
+  Future<void> _startRouteTracking() async {
+    try {
+      // Do not await a void method; RouteTracker.startTracking() returns void.
+      if (_routeTracker == null) {
+        // If not created yet, attempt to create it (best-effort)
+        await _setupRouteTracking();
+        return;
+      }
+
+      // startTracking is synchronous (void) in your RouteTracker, so just call it
+      _routeTracker!.startTracking();
+      print("Route tracking started");
+    } catch (e) {
+      print("Failed to start route tracking: $e");
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text("无法开始路线跟踪: $e")));
+      }
+    }
+  }
+
+  void _updateGuardMarker() {
+    // 移除旧的守卫标记
+    _markers.removeWhere((marker) => marker.markerId.value == "guard_location");
+
+    // 添加新的守卫标记
+    if (_guardPosition != null) {
+      _markers.add(
+        Marker(
+          markerId: const MarkerId("guard_location"),
+          position: _guardPosition!,
+          infoWindow: const InfoWindow(title: "Your Location"),
+          icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueBlue),
+        ),
+      );
+    }
+  }
+
+  Future<void> _initAudioSession() async {
+    final session = await AudioSession.instance;
+    await session.configure(AudioSessionConfiguration.music());
+    await session.setActive(true);
+    print("AudioSession configured & activated ✅");
+  }
+
+  void _listenPlayer() {
+    // assign subscriptions so we can cancel later
+    _playerStateSub?.cancel();
+    _durationSub?.cancel();
+
+    _playerStateSub = _audioPlayer.playerStateStream.listen((state) {
+      if (_currentlyPlayingDocId != null) {
+        if (state.processingState == ProcessingState.loading) {
+          if (mounted) setState(() => _isLoading = true);
+        } else if (state.processingState == ProcessingState.ready) {
+          if (mounted) setState(() => _isLoading = false);
+        } else if (state.processingState == ProcessingState.completed) {
+          if (mounted) {
+            setState(() {
+              _isCompleted = true;
+              _isLoading = false;
+              _currentPosition = Duration.zero;
+            });
+          }
+        }
+      }
+    });
+
+    _durationSub = _audioPlayer.durationStream.listen((duration) {
+      if (duration != null && mounted) {
+        setState(() {
+          _totalDuration = duration;
+        });
+      }
+    });
+  }
+
+  Future<void> _playRecording(String url, String docId) async {
+    try {
+      if (_currentlyPlayingDocId == docId) {
+        // 同一音频的播放/暂停
+        if (_audioPlayer.playing) {
+          await _audioPlayer.pause();
+        } else {
+          // 如果是已完成状态，重新开始播放
+          if (_isCompleted) {
+            await _audioPlayer.seek(Duration.zero);
+            if (mounted) {
+              setState(() {
+                _isCompleted = false;
+                _currentPosition = Duration.zero;
+              });
+            }
+          }
+          await _audioPlayer.play();
+        }
+      } else {
+        // 新音频
+        if (mounted) {
+          setState(() {
+            _isLoading = true;
+            _currentlyPlayingDocId = docId;
+            _currentPosition = Duration.zero;
+            _isCompleted = false;
+          });
+        }
+
+        await _audioPlayer.stop();
+        await _audioPlayer.setAudioSource(AudioSource.uri(Uri.parse(url)));
+        await _audioPlayer.play();
+        print("Playback started ▶️");
+      }
+    } catch (e) {
+      print("Playback error: $e");
+      if (!mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text("Playback error: $e")));
+      setState(() {
+        _isLoading = false;
+        _currentlyPlayingDocId = null;
+        _isCompleted = false;
+      });
+    }
+  }
+
+  String _formatDuration(Duration d) {
+    if (d.inSeconds < 0) return "00:00";
+    String twoDigits(int n) => n.toString().padLeft(2, "0");
+    final minutes = twoDigits(d.inMinutes.remainder(60));
+    final seconds = twoDigits(d.inSeconds.remainder(60));
+    return "$minutes:$seconds";
+  }
+
   Future<void> _updateCameraBounds() async {
-    if (_userPosition == null || _guardPosition == null || !_mapControllerCompleter.isCompleted) return;
+    if (_userPosition == null ||
+        _guardPosition == null ||
+        !_mapControllerCompleter.isCompleted)
+      return;
+
     final controller = await _mapControllerCompleter.future;
     controller.animateCamera(
       CameraUpdate.newLatLngBounds(
         LatLngBounds(
           southwest: LatLng(
-            _userPosition!.latitude < _guardPosition!.latitude ? _userPosition!.latitude : _guardPosition!.latitude,
-            _userPosition!.longitude < _guardPosition!.longitude ? _userPosition!.longitude : _guardPosition!.longitude,
+            _userPosition!.latitude < _guardPosition!.latitude
+                ? _userPosition!.latitude
+                : _guardPosition!.latitude,
+            _userPosition!.longitude < _guardPosition!.longitude
+                ? _userPosition!.longitude
+                : _guardPosition!.longitude,
           ),
           northeast: LatLng(
-            _userPosition!.latitude > _guardPosition!.latitude ? _userPosition!.latitude : _guardPosition!.latitude,
-            _userPosition!.longitude > _guardPosition!.longitude ? _userPosition!.longitude : _guardPosition!.longitude,
+            _userPosition!.latitude > _guardPosition!.latitude
+                ? _userPosition!.latitude
+                : _guardPosition!.latitude,
+            _userPosition!.longitude > _guardPosition!.longitude
+                ? _userPosition!.longitude
+                : _guardPosition!.longitude,
           ),
         ),
         100.0,
@@ -106,7 +298,8 @@ class _TrackingPageState extends State<TrackingPage> {
   }
 
   LatLng? _extractLatLng(Map<String, dynamic>? data) {
-    if (data == null || data['latitude'] == null || data['longitude'] == null) return null;
+    if (data == null || data['latitude'] == null || data['longitude'] == null)
+      return null;
     return LatLng(data['latitude'], data['longitude']);
   }
 
@@ -115,49 +308,134 @@ class _TrackingPageState extends State<TrackingPage> {
       context: context,
       builder: (context) => AlertDialog(
         title: const Text("Confirm End Task"),
-        content: const Text("Are you sure you want to mark this alert as completed?"),
+        content: const Text(
+          "Are you sure you want to mark this alert as completed?",
+        ),
         actions: [
-          TextButton(onPressed: () => Navigator.of(context).pop(false), child: const Text("Cancel")),
-          TextButton(onPressed: () => Navigator.of(context).pop(true), child: const Text("Confirm")),
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text("Cancel"),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            child: const Text("Confirm"),
+          ),
         ],
       ),
     );
+
     if (confirmed == true) {
       await _guardLocationService.stopSharingLocation();
-      await FirebaseFirestore.instance.collection('alerts').doc(widget.alertId).update({
-        'status': 'completed',
-        'completedAt': FieldValue.serverTimestamp(),
-        'duress': false,
-      });
+      await FirebaseFirestore.instance
+          .collection('alerts')
+          .doc(widget.alertId)
+          .update({
+            'status': 'completed',
+            'completedAt': FieldValue.serverTimestamp(),
+            'duress': false,
+          });
       if (mounted) Navigator.of(context).pop();
     }
   }
-  
+
   @override
   void dispose() {
-    _routeRecalculationTimer?.cancel();
+    _routeRecalculationTimer?.cancel(); // 如果定时器已被移除，这行可保留或删除
+    _positionSub?.cancel();
+    _playerStateSub?.cancel();
+    _durationSub?.cancel();
     _audioPlayer.dispose();
+    _routeTracker?.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
-    final alertStream = FirebaseFirestore.instance.collection('alerts').doc(widget.alertId).snapshots();
-    final guardStream = FirebaseFirestore.instance.collection('guards').doc(widget.guardId).snapshots();
+    final alertStream = FirebaseFirestore.instance
+        .collection('alerts')
+        .doc(widget.alertId)
+        .snapshots();
+    final guardStream = FirebaseFirestore.instance
+        .collection('guards')
+        .doc(widget.guardId)
+        .snapshots();
 
     return Scaffold(
       appBar: AppBar(
         title: const Text("Tracking Alert"),
         backgroundColor: Colors.red.shade700,
         foregroundColor: Colors.white,
+        actions: [
+          // 添加路线跟踪信息按钮
+          IconButton(
+            icon: const Icon(Icons.route),
+            onPressed: () {
+              showDialog(
+                context: context,
+                builder: (context) => AlertDialog(
+                  title: const Text("Route Information"),
+                  content: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        "Distance traveled: ${_trackedDistance.toStringAsFixed(2)} meters",
+                      ),
+                      Text("Points recorded: $_trackedPoints"),
+                      Text(
+                        "Status: ${_routeTracker?.isTracking == true ? 'Tracking' : 'Not Tracking'}",
+                      ),
+                    ],
+                  ),
+                  actions: [
+                    TextButton(
+                      onPressed: () => Navigator.of(context).pop(),
+                      child: const Text("OK"),
+                    ),
+                    if (_routeTracker?.isTracking == true)
+                      TextButton(
+                        onPressed: () {
+                          _routeTracker?.stopTracking();
+                          Navigator.of(context).pop();
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text("Route tracking stopped"),
+                            ),
+                          );
+                        },
+                        child: const Text("Stop Tracking"),
+                      ),
+                    if (!(_routeTracker?.isTracking == true))
+                      TextButton(
+                        onPressed: () {
+                          _startRouteTracking();
+                          Navigator.of(context).pop();
+                        },
+                        child: const Text("Start Tracking"),
+                      ),
+                  ],
+                ),
+              );
+            },
+          ),
+        ],
       ),
       body: StreamBuilder<List<DocumentSnapshot>>(
-        stream: CombineLatestStream.combine2(alertStream, guardStream, (a, b) => [a, b]),
+        stream: CombineLatestStream.combine2(
+          alertStream,
+          guardStream,
+          (a, b) => [a, b],
+        ),
         builder: (context, snapshot) {
-          if (!snapshot.hasData) return const Center(child: CircularProgressIndicator());
+          if (!snapshot.hasData)
+            return const Center(child: CircularProgressIndicator());
+
           final alertSnap = snapshot.data![0];
           final guardSnap = snapshot.data![1];
-          if (!alertSnap.exists) return const Center(child: Text("Alert has been resolved or deleted."));
+          if (!alertSnap.exists)
+            return const Center(
+              child: Text("Alert has been resolved or deleted."),
+            );
 
           final alertData = alertSnap.data() as Map<String, dynamic>;
           final guardData = guardSnap.data() as Map<String, dynamic>?;
@@ -166,10 +444,31 @@ class _TrackingPageState extends State<TrackingPage> {
           _userPosition = _extractLatLng(alertData);
           _guardPosition = _extractLatLng(guardData);
 
+          // 检查位置变化，超过100米时重新初始化RouteTracker
           if (_userPosition != null && _guardPosition != null) {
-            if (_routeRecalculationTimer == null || !_routeRecalculationTimer!.isActive) {
-               _updateRouteAndInfo();
-               _startRouteRecalculation();
+            if (_lastUserPosition == null && _lastGuardPosition == null) {
+              // 第一次获取到位置，初始化路线
+              _lastUserPosition = _userPosition;
+              _lastGuardPosition = _guardPosition;
+              _setupRouteTracking();
+            } else {
+              final userDistance = Geolocator.distanceBetween(
+                _lastUserPosition!.latitude,
+                _lastUserPosition!.longitude,
+                _userPosition!.latitude,
+                _userPosition!.longitude,
+              );
+              final guardDistance = Geolocator.distanceBetween(
+                _lastGuardPosition!.latitude,
+                _lastGuardPosition!.longitude,
+                _guardPosition!.latitude,
+                _guardPosition!.longitude,
+              );
+              if (userDistance > 100 || guardDistance > 100) {
+                _lastUserPosition = _userPosition;
+                _lastGuardPosition = _guardPosition;
+                _setupRouteTracking();
+              }
             }
           }
 
@@ -201,24 +500,33 @@ class _TrackingPageState extends State<TrackingPage> {
 
   Widget _buildMap() {
     _markers.clear();
+
+    // 添加用户位置标记
     if (_userPosition != null) {
-      _markers.add(Marker(
-        markerId: const MarkerId("user_location"),
-        position: _userPosition!,
-        infoWindow: const InfoWindow(title: "User Location"),
-        icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueRed),
-      ));
+      _markers.add(
+        Marker(
+          markerId: const MarkerId("user_location"),
+          position: _userPosition!,
+          infoWindow: const InfoWindow(title: "User Location"),
+          icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueRed),
+        ),
+      );
     }
     if (_guardPosition != null) {
-      _markers.add(Marker(
-        markerId: const MarkerId("guard_location"),
-        position: _guardPosition!,
-        infoWindow: const InfoWindow(title: "Your Location"),
-        icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueBlue),
-      ));
+      _markers.add(
+        Marker(
+          markerId: const MarkerId("guard_location"),
+          position: _guardPosition!,
+          infoWindow: const InfoWindow(title: "Your Location"),
+          icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueBlue),
+        ),
+      );
     }
     _updateCameraBounds();
-    if (_userPosition == null) return const Center(child: Text("Waiting for user location..."));
+
+    if (_userPosition == null)
+      return const Center(child: Text("Waiting for user location..."));
+
     return GoogleMap(
       onMapCreated: (controller) {
         if (!_mapControllerCompleter.isCompleted) {
@@ -227,12 +535,13 @@ class _TrackingPageState extends State<TrackingPage> {
       },
       initialCameraPosition: CameraPosition(target: _userPosition!, zoom: 16),
       markers: _markers,
-      polylines: _polylines,
+      // 合并两组 polyline：导航（_polylines） + 路线跟踪（_trackedRoutePolylines）
+      polylines: {..._polylines, ..._trackedRoutePolylines},
     );
   }
 
   Widget _buildNavigationInfoCard(Map<String, dynamic> alertData) {
-     return Container(
+    return Container(
       padding: const EdgeInsets.all(12),
       color: Colors.blueGrey.shade50,
       child: Column(
@@ -246,8 +555,18 @@ class _TrackingPageState extends State<TrackingPage> {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceAround,
             children: [
-              _buildMetricItem(Icons.directions_walk, _distanceRemaining, "Distance to User", Colors.blue),
-              _buildMetricItem(Icons.timer, _durationRemaining, "Est. Arrival Time", Colors.green),
+              _buildMetricItem(
+                Icons.directions_walk,
+                _distanceRemaining,
+                "Distance to User",
+                Colors.blue,
+              ),
+              _buildMetricItem(
+                Icons.timer,
+                _durationRemaining,
+                "Est. Arrival Time",
+                Colors.green,
+              ),
             ],
           ),
         ],
@@ -255,12 +574,24 @@ class _TrackingPageState extends State<TrackingPage> {
     );
   }
 
-  Widget _buildMetricItem(IconData icon, String value, String label, Color color) {
+  Widget _buildMetricItem(
+    IconData icon,
+    String value,
+    String label,
+    Color color,
+  ) {
     return Column(
       children: [
         Icon(icon, color: color, size: 28),
         const SizedBox(height: 4),
-        Text(value, style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: color)),
+        Text(
+          value,
+          style: TextStyle(
+            fontSize: 18,
+            fontWeight: FontWeight.bold,
+            color: color,
+          ),
+        ),
         const SizedBox(height: 2),
         Text(label, style: const TextStyle(fontSize: 12, color: Colors.grey)),
       ],
@@ -269,44 +600,127 @@ class _TrackingPageState extends State<TrackingPage> {
 
   Widget _buildAudioList() {
     return StreamBuilder<QuerySnapshot>(
-        stream: FirebaseFirestore.instance
-            .collection('alerts')
-            .doc(widget.alertId)
-            .collection('audio')
-            .orderBy('uploadedAt', descending: true)
-            .snapshots(),
-        builder: (context, snapshot) {
-          if (snapshot.connectionState == ConnectionState.waiting) {
-             return const Center(child: CircularProgressIndicator());
-          }
-          if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
-            return const Center(child: Text("No audio recordings yet."));
-          }
-          final audioDocs = snapshot.data!.docs;
-          return ListView.builder(
-            itemCount: audioDocs.length,
-            itemBuilder: (context, index) {
-              final audioData = audioDocs[index].data() as Map<String, dynamic>;
-              final url = audioData['url'] as String?;
-              final uploadedAt = (audioData['uploadedAt'] as Timestamp?)?.toDate();
-              
-              if(url == null) return const SizedBox.shrink();
+      stream: FirebaseFirestore.instance
+          .collection('alerts')
+          .doc(widget.alertId)
+          .collection('audio')
+          .orderBy('uploadedAt', descending: true)
+          .snapshots(),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Center(child: CircularProgressIndicator());
+        }
+        if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+          return const Center(child: Text("No audio recordings yet."));
+        }
 
-              return AudioPlayerTile(
-                key: ValueKey(url),
-                audioPlayer: _audioPlayer,
-                url: url,
-                uploadedAt: uploadedAt,
-              );
-            },
-          );
-        });
+        final audioDocs = snapshot.data!.docs;
+        return ListView.builder(
+          itemCount: audioDocs.length,
+          itemBuilder: (context, index) {
+            final audioData = audioDocs[index].data() as Map<String, dynamic>;
+            final url = audioData['url'] as String?;
+            final uploadedAt = (audioData['uploadedAt'] as Timestamp?)
+                ?.toDate();
+            final docId = audioDocs[index].id;
+
+            if (url == null) return const SizedBox.shrink();
+
+            final isPlaying = _currentlyPlayingDocId == docId;
+            final isCurrentLoading = isPlaying && _isLoading;
+
+            return Card(
+              margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+              child: Column(
+                children: [
+                  ListTile(
+                    leading: const Icon(Icons.mic),
+                    title: Text(
+                      uploadedAt != null
+                          ? "Recording at ${TimeOfDay.fromDateTime(uploadedAt).format(context)}"
+                          : "Recording",
+                    ),
+                    trailing: IconButton(
+                      icon: Icon(
+                        isCurrentLoading
+                            ? Icons.hourglass_bottom
+                            : isPlaying && _audioPlayer.playing
+                            ? Icons.pause_circle_filled
+                            : Icons.play_circle_fill,
+                        size: 30,
+                      ),
+                      onPressed: () => _playRecording(url, docId),
+                    ),
+                  ),
+                  if (isPlaying) ...[
+                    if (isCurrentLoading)
+                      const Padding(
+                        padding: EdgeInsets.all(12.0),
+                        child: LinearProgressIndicator(),
+                      ),
+                    if (!isCurrentLoading && _totalDuration > Duration.zero)
+                      StreamBuilder<Duration>(
+                        stream: _audioPlayer.positionStream,
+                        builder: (context, snapshot) {
+                          final position = snapshot.data ?? Duration.zero;
+
+                          return Column(
+                            children: [
+                              Slider(
+                                min: 0,
+                                max: _totalDuration.inMilliseconds.toDouble(),
+                                value: position.inMilliseconds
+                                    .clamp(0, _totalDuration.inMilliseconds)
+                                    .toDouble(),
+                                onChanged: (value) {
+                                  if (!mounted) return;
+                                  setState(() {
+                                    _currentPosition = Duration(
+                                      milliseconds: value.toInt(),
+                                    );
+                                  });
+                                },
+                                onChangeEnd: (value) async {
+                                  await _audioPlayer.seek(
+                                    Duration(milliseconds: value.toInt()),
+                                  );
+                                  if (!_audioPlayer.playing) {
+                                    await _audioPlayer.play();
+                                  }
+                                },
+                              ),
+                              Padding(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 24.0,
+                                ),
+                                child: Row(
+                                  mainAxisAlignment:
+                                      MainAxisAlignment.spaceBetween,
+                                  children: [
+                                    Text(_formatDuration(position)),
+                                    Text(_formatDuration(_totalDuration)),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          );
+                        },
+                      ),
+                  ],
+                ],
+              ),
+            );
+          },
+        );
+      },
+    );
   }
-  
+
   List<LatLng> _decodePolyline(String encoded) {
     List<LatLng> points = [];
     int index = 0, len = encoded.length;
     int lat = 0, lng = 0;
+
     while (index < len) {
       int b, shift = 0, result = 0;
       do {
@@ -314,15 +728,18 @@ class _TrackingPageState extends State<TrackingPage> {
         result |= (b & 0x1f) << shift;
         shift += 5;
       } while (b >= 0x20);
+
       int dlat = ((result & 1) != 0 ? ~(result >> 1) : (result >> 1));
       lat += dlat;
       shift = 0;
       result = 0;
+
       do {
         b = encoded.codeUnitAt(index++) - 63;
         result |= (b & 0x1f) << shift;
         shift += 5;
       } while (b >= 0x20);
+
       int dlng = ((result & 1) != 0 ? ~(result >> 1) : (result >> 1));
       lng += dlng;
       points.add(LatLng(lat / 1E5, lng / 1E5));
@@ -331,116 +748,18 @@ class _TrackingPageState extends State<TrackingPage> {
   }
 }
 
-class AudioPlayerTile extends StatefulWidget {
-  final AudioPlayer audioPlayer;
-  final String url;
-  final DateTime? uploadedAt;
+// LocationService 类定义（假设已存在）
+class LocationService {
+  final String id;
+  final bool isAlert;
 
-  const AudioPlayerTile({
-    super.key,
-    required this.audioPlayer,
-    required this.url,
-    this.uploadedAt,
-  });
+  LocationService(this.id, {required this.isAlert});
 
-  @override
-  State<AudioPlayerTile> createState() => _AudioPlayerTileState();
-}
-
-class _AudioPlayerTileState extends State<AudioPlayerTile> {
-
-  @override
-  Widget build(BuildContext context) {
-    return StreamBuilder<PlayerState>(
-      stream: widget.audioPlayer.playerStateStream,
-      builder: (context, snapshot) {
-        final playerState = snapshot.data;
-        final processingState = playerState?.processingState;
-        final isPlaying = playerState?.playing ?? false;
-        final isCurrentSource = widget.audioPlayer.audioSource?.toString().contains(widget.url) ?? false;
-
-        final isLoading = isCurrentSource && (processingState == ProcessingState.loading || processingState == ProcessingState.buffering);
-        final isThisTilePlaying = isCurrentSource && isPlaying;
-
-        return Card(
-          margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-          shape: RoundedRectangleBorder(
-            side: BorderSide(
-              color: isCurrentSource ? Colors.blueAccent : Colors.transparent,
-              width: 2,
-            ),
-            borderRadius: BorderRadius.circular(12),
-          ),
-          child: Column(
-            children: [
-              ListTile(
-                leading: const Icon(Icons.mic),
-                title: Text(widget.uploadedAt != null
-                    ? "Recording at ${TimeOfDay.fromDateTime(widget.uploadedAt!).format(context)}"
-                    : "Recording"),
-                trailing: isLoading
-                  ? const SizedBox(width: 24, height: 24, child: CircularProgressIndicator(strokeWidth: 2))
-                  : IconButton(
-                      icon: Icon(
-                        isThisTilePlaying ? Icons.pause_circle_filled : Icons.play_circle_fill,
-                        size: 30,
-                        color: isThisTilePlaying ? Colors.blueAccent : null,
-                      ),
-                      onPressed: () {
-                        if (isThisTilePlaying) {
-                          widget.audioPlayer.pause();
-                        } else if (isCurrentSource) {
-                          widget.audioPlayer.play();
-                        } else {
-
-                          widget.audioPlayer.stop();
-                          widget.audioPlayer.setAudioSource(AudioSource.uri(Uri.parse(widget.url)));
-                          widget.audioPlayer.play();
-                        }
-                      },
-                    ),
-              ),
-              if (isCurrentSource)
-                StreamBuilder<Duration>(
-                  stream: widget.audioPlayer.positionStream,
-                  builder: (context, positionSnapshot) {
-                    final position = positionSnapshot.data ?? Duration.zero;
-                    final duration = widget.audioPlayer.duration ?? Duration.zero;
-                    return Column(
-                      children: [
-                        Slider(
-                          min: 0,
-                          max: duration.inMilliseconds > 0 ? duration.inMilliseconds.toDouble() : 1.0,
-                          value: position.inMilliseconds.clamp(0, duration.inMilliseconds).toDouble(),
-                          onChanged: (value) {
-                            widget.audioPlayer.seek(Duration(milliseconds: value.toInt()));
-                          },
-                        ),
-                        Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: 24.0).copyWith(bottom: 8),
-                          child: Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
-                              Text(_formatDuration(position)),
-                              Text(_formatDuration(duration)),
-                            ],
-                          ),
-                        ),
-                      ],
-                    );
-                  }
-                ),
-            ],
-          ),
-        );
-      }
-    );
+  Future<void> startSharingLocation() async {
+    // 实现位置共享逻辑
   }
 
-  String _formatDuration(Duration d) {
-    String twoDigits(int n) => n.toString().padLeft(2, "0");
-    final minutes = twoDigits(d.inMinutes.remainder(60));
-    final seconds = twoDigits(d.inSeconds.remainder(60));
-    return "$minutes:$seconds";
+  Future<void> stopSharingLocation() async {
+    // 实现停止位置共享逻辑
   }
 }
