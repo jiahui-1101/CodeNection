@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:speech_to_text/speech_to_text.dart' as stt;
 import 'package:flutter_tts/flutter_tts.dart';
 import 'package:audioplayers/audioplayers.dart';
+import 'package:firebase_ai/firebase_ai.dart';
 
 class SafetyCompanionBottomSheetAI extends StatefulWidget {
   final VoidCallback? onBack;
@@ -16,16 +17,26 @@ class _SafetyCompanionBottomSheetAIState
     extends State<SafetyCompanionBottomSheetAI> {
   late stt.SpeechToText _speech;
   late FlutterTts _tts;
+  late GenerativeModel _model;
   final AudioPlayer _audioPlayer = AudioPlayer();
 
   bool _isListening = false;
+  bool _isResponding = false;
   String _recognizedText = "Tap the mic and start speaking…";
 
+  @override
   @override
   void initState() {
     super.initState();
     _speech = stt.SpeechToText();
     _tts = FlutterTts();
+
+    _tts.setLanguage('en-US');
+    _tts.setPitch(1.0);
+    _tts.setSpeechRate(0.5);
+
+    // initialize Gemini via Firebase AI
+    _model = FirebaseAI.googleAI().generativeModel(model: 'gemini-2.5-flash');
   }
 
   Future<void> _startListening() async {
@@ -36,15 +47,17 @@ class _SafetyCompanionBottomSheetAIState
 
     if (available) {
       setState(() => _isListening = true);
-      _speech.listen(onResult: (result) {
-        setState(() {
-          _recognizedText = result.recognizedWords;
-        });
+      _speech.listen(
+        onResult: (result) {
+          setState(() {
+            _recognizedText = result.recognizedWords;
+          });
 
-        if (result.finalResult) {
-          _respondToUser(_recognizedText);
-        }
-      });
+          if (result.finalResult) {
+            _respondToUser(_recognizedText);
+          }
+        },
+      );
     }
   }
 
@@ -53,15 +66,70 @@ class _SafetyCompanionBottomSheetAIState
     setState(() => _isListening = false);
   }
 
+  Future<String> _getGeminiResponse(String prompt) async {
+    try {
+      final response = await _model.generateContent([
+        Content.text(
+          'You are a helpful safety companion. Provide concise, supportive responses focused on safety and well-being. Keep responses under 150 words.',
+        ),
+        Content.text(prompt),
+      ]);
+      return response.text ?? "I couldn't generate a response.";
+    } catch (e) {
+      debugPrint('Gemini error: $e');
+      throw Exception("Error fetching Gemini response: $e");
+    }
+  }
+
   Future<void> _respondToUser(String userText) async {
-    // Simple AI response (replace with your own logic / API call)
-    String response = "You said: $userText. Stay safe, I’m here with you.";
+    if (userText.isEmpty) return;
 
-    // Speak it out
-    await _tts.speak(response);
+    setState(() {
+      _isResponding = true;
+      _isListening = false; // ensure reset
+    });
 
-    // (Optional) also play using audioplayers if you have pre-generated audio
-    // await _audioPlayer.play(UrlSource('https://your-audio-file.mp3'));
+    try {
+      final response = await _getGeminiResponse(userText);
+      setState(() {
+        _recognizedText = response;
+      });
+
+      // Restart listening after TTS completes
+      _tts.setCompletionHandler(() {
+        setState(() => _isResponding = false);
+        if (!_isListening) {
+          _startListening();
+        }
+      });
+
+      await _tts.speak(response);
+    } catch (e) {
+      debugPrint('Error in _respondToUser: $e');
+      setState(() {
+        _recognizedText =
+            "Sorry, I'm having trouble connecting. Please try again. Error: ${e.toString()}";
+      });
+
+      _tts.setCompletionHandler(() {
+        setState(() => _isResponding = false);
+        if (!_isListening) {
+          _startListening();
+        }
+      });
+
+      await _tts.speak(
+        "Sorry, I'm having trouble connecting. Please try again.",
+      );
+    }
+  }
+
+  Widget _buildMicButton() {
+    return Icon(
+      _isListening ? Icons.mic : Icons.mic_none,
+      color: _isListening ? Colors.red : Colors.orange,
+      size: 48,
+    );
   }
 
   @override
@@ -91,7 +159,7 @@ class _SafetyCompanionBottomSheetAIState
                 ),
               const Expanded(
                 child: Text(
-                  'Safety Companion',
+                  'AI Live Chat (Gemini)',
                   style: TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.bold,
@@ -103,27 +171,35 @@ class _SafetyCompanionBottomSheetAIState
             ],
           ),
           const SizedBox(height: 12),
-
-          // Display recognized speech
-          Text(
-            _recognizedText,
-            style: const TextStyle(fontSize: 14, color: Colors.black87),
-            textAlign: TextAlign.center,
-          ),
+          _isResponding
+              ? const Padding(
+                  padding: EdgeInsets.all(16.0),
+                  child: CircularProgressIndicator(
+                    valueColor: AlwaysStoppedAnimation<Color>(Colors.orange),
+                  ),
+                )
+              : Text(
+                  _recognizedText,
+                  style: const TextStyle(fontSize: 14, color: Colors.black87),
+                  textAlign: TextAlign.center,
+                ),
           const SizedBox(height: 20),
-
-          // Mic button
           IconButton(
             iconSize: 48,
-            icon: Icon(
-              _isListening ? Icons.mic : Icons.mic_none,
-              color: _isListening ? Colors.red : Colors.orange,
-            ),
-            onPressed: _isListening ? _stopListening : _startListening,
+            icon: _buildMicButton(),
+            onPressed: _isResponding
+                ? null
+                : _isListening
+                ? _stopListening
+                : _startListening,
           ),
           const SizedBox(height: 8),
           Text(
-            _isListening ? "Listening…" : "Tap to talk",
+            _isResponding
+                ? "Processing..."
+                : _isListening
+                ? "Listening…"
+                : "Tap to talk",
             style: const TextStyle(fontSize: 12, color: Colors.grey),
           ),
         ],

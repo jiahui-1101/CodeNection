@@ -318,5 +318,5 @@ class _SafetyCompanionBottomSheetVCState
       ),
     );
   }
-}
+} 
 
