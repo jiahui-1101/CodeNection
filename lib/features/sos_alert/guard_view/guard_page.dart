@@ -3,8 +3,9 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'dart:async';
 import 'package:rxdart/rxdart.dart';
 import 'package:hello_flutter/features/sos_alert/guard_view/guard_tracking_page.dart';
-import 'package:hello_flutter/features/sos_alert/service/location_service.dart';
+import 'package:hello_flutter/features/sos_alert/service/location_service.dart' as location_service; // Add alias
 import 'alert_record_histories.dart';
+
 class GuardPage extends StatefulWidget {
   final String guardId;
   const GuardPage({super.key, required this.guardId});
@@ -67,7 +68,8 @@ class _GuardPageState extends State<GuardPage> {
       'acceptedAt': FieldValue.serverTimestamp(),
     });
 
-    final locationService = LocationService(widget.guardId, isAlert: false);
+    // Use the alias to resolve the ambiguity
+    final locationService = location_service.LocationService(widget.guardId, isAlert: false);
     locationService.startSharingLocation();
 
     _navigateToTracking(alertId);
