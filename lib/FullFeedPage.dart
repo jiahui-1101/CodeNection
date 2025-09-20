@@ -17,26 +17,6 @@ class _FullFeedPageState extends State<FullFeedPage> {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   final FirebaseAuth _auth = FirebaseAuth.instance;
 
-  // Pick icon & color
-  Map<String, dynamic> _getIconAndColor(
-    String type,
-    String? status,
-    String? text,
-  ) {
-    if (type == 'alert') {
-      return {'icon': Icons.warning_amber_rounded, 'color': Colors.red};
-    } else if (type == 'report') {
-      return {'icon': Icons.report_problem, 'color': Colors.orange};
-    } else if (type == 'user') {
-      if (text?.toLowerCase().contains('closed') ?? false) {
-        return {'icon': Icons.announcement, 'color': Colors.blue};
-      } else if (text?.toLowerCase().contains('medical') ?? false) {
-        return {'icon': Icons.local_hospital, 'color': Colors.green};
-      }
-    }
-    return {'icon': Icons.info, 'color': Colors.grey};
-  }
-
   String _formatTime(Timestamp timestamp) {
     final now = DateTime.now();
     final time = timestamp.toDate();
@@ -61,19 +41,7 @@ class _FullFeedPageState extends State<FullFeedPage> {
         backgroundColor: Colors.blue,
         foregroundColor: Colors.white,
         elevation: 0,
-        actions: [
-          const SosAppBarButton(),
-          if (user != null)
-            IconButton(
-              icon: const Icon(Icons.logout, color: Colors.white),
-              onPressed: () async {
-                await _auth.signOut();
-                if (mounted) {
-                  Navigator.of(context).pop();
-                }
-              },
-            ),
-        ],
+        actions: [const SosAppBarButton()],
       ),
       body: user == null
           ? Container(
@@ -180,7 +148,10 @@ class _FullFeedPageState extends State<FullFeedPage> {
                     stream: CombineLatestStream.list([
                       _firestore
                           .collection('reports')
-                          .where('uid', isEqualTo: user.uid)
+                          .where(
+                            'userId',
+                            isEqualTo: user.uid,
+                          ) // field matches Firestore
                           .snapshots(),
                       _firestore
                           .collection('alerts')
@@ -221,28 +192,33 @@ class _FullFeedPageState extends State<FullFeedPage> {
                         final data = doc.data() as Map<String, dynamic>;
                         final timestamp = data['timestamp'] ?? Timestamp.now();
                         final text = data['status'] ?? 'No status';
+                        final title = data['title'] ?? 'No title';
+
                         allData.add({
                           'icon': Icons.collections_bookmark,
                           'color': Colors.orange,
-                          'text': text,
+                          'title': title, // ✅ show title
+                          'text': text, // ✅ show status
                           'time': _formatTime(timestamp),
                           'timestamp': timestamp,
-                          'type': 'Report', // ✅ Add this
+                          'type': 'Report',
                         });
                       }
 
-                      // Alerts
+                      // Alerts (✅ fixed to include title + status)
                       for (var doc in alertsSnap.docs) {
                         final data = doc.data() as Map<String, dynamic>;
                         final timestamp = data['timestamp'] ?? Timestamp.now();
-                        final text = data['status'] ?? 'No status';
+                        final status = data['status'] ?? 'No status';
+                        final title = data['title'] ?? 'No title';
                         allData.add({
                           'icon': Icons.notifications_active,
                           'color': Colors.red,
-                          'text': text,
+                          'title': title,
+                          'text': status,
                           'time': _formatTime(timestamp),
                           'timestamp': timestamp,
-                          'type': 'Alert', // ✅ Add this
+                          'type': 'Alert',
                         });
                       }
 
@@ -258,7 +234,7 @@ class _FullFeedPageState extends State<FullFeedPage> {
                           'text': text,
                           'time': _formatTime(timestamp),
                           'timestamp': timestamp,
-                          'type': 'User Activity', // ✅ Add this
+                          'type': 'User Activity',
                         });
                       }
 
@@ -269,9 +245,10 @@ class _FullFeedPageState extends State<FullFeedPage> {
 
                       // Search filter
                       final filteredData = allData.where((item) {
-                        return item['text'].toLowerCase().contains(
-                          _searchQuery.toLowerCase(),
-                        );
+                        final query = _searchQuery.toLowerCase();
+                        final text = (item['text'] ?? '').toLowerCase();
+                        final title = (item['title'] ?? '').toLowerCase();
+                        return text.contains(query) || title.contains(query);
                       }).toList();
 
                       if (filteredData.isEmpty) {
@@ -283,7 +260,6 @@ class _FullFeedPageState extends State<FullFeedPage> {
                         );
                       }
 
-                      // ✅ LiveFeedSection style UI
                       return ListView.separated(
                         padding: const EdgeInsets.all(16),
                         itemCount: filteredData.length,
@@ -316,16 +292,35 @@ class _FullFeedPageState extends State<FullFeedPage> {
                                       children: [
                                         // ✅ Title (Report / Alert / User)
                                         Text(
-                                          item['type'], // <-- use the type here
+                                          item['type'],
                                           style: const TextStyle(
                                             fontSize: 14,
                                             fontWeight: FontWeight.bold,
                                             color: Colors.black87,
                                           ),
                                         ),
-                                        const SizedBox(height: 2),
 
-                                        // ✅ Main text
+                                        // ✅ Extra title only for Reports & Alerts
+                                        if ((item['type'] == 'Alert' ||
+                                                item['type'] == 'Report') &&
+                                            item['title'] != null) ...[
+                                          const SizedBox(height: 2),
+                                          Text(
+                                            item['title'],
+                                            style: const TextStyle(
+                                              fontSize: 13,
+                                              fontWeight: FontWeight.w600,
+                                              color: Color.fromRGBO(
+                                                36,
+                                                35,
+                                                35,
+                                                0.702,
+                                              ),
+                                            ),
+                                          ),
+                                        ],
+
+                                        // ✅ Main text (status/message)
                                         Text(
                                           item['text'],
                                           style: const TextStyle(fontSize: 15),
