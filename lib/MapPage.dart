@@ -194,9 +194,19 @@ class _MapPageState extends State<MapPage> {
               journeyStarted = true;
             });
           },
+          onEndJourney: _resetMapState,
         ),
       ),
     );
+  }
+
+  void _resetMapState() {
+    setState(() {
+      journeyStarted = false;
+      markers.clear();
+      polylines.clear();
+      // Reset any other navigation-related state here
+    });
   }
 
   // ✅ Added: location picker
@@ -293,6 +303,7 @@ class _MapPageState extends State<MapPage> {
                   journeyStarted = true;
                 });
               },
+              onEndJourney: _resetMapState, 
             ),
           ),
         );
@@ -311,6 +322,7 @@ class _MapPageState extends State<MapPage> {
                   journeyStarted = true;
                 });
               },
+              onEndJourney: _resetMapState,
             ),
           ),
         );

@@ -4,14 +4,10 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:intl/intl.dart';
 
 class ChatPage extends StatefulWidget {
-  final Map<String, dynamic>? partner;
-  final String? chatId;
+  final Map<String, dynamic> partner;
+  final String chatId;
 
-  const ChatPage({super.key, this.partner, this.chatId})
-      : assert(
-          partner != null || chatId != null,
-          'Provide either partner or chatId',
-        );
+  const ChatPage({super.key, required this.partner, required this.chatId});
 
   @override
   State<ChatPage> createState() => _ChatPageState();
@@ -25,111 +21,89 @@ class _ChatPageState extends State<ChatPage> {
 
   late String _currentUserId;
   late String _chatId;
-  Map<String, dynamic>? _partner; // made nullable for safety
-  late Stream<QuerySnapshot> _messagesStream;
+  late Map<String, dynamic> _partner;
+  Stream<QuerySnapshot>? _messagesStream;
   bool _isLoading = true;
+  String? _errorMessage;
 
   @override
   void initState() {
     super.initState();
-
-    _currentUserId = _auth.currentUser?.uid ?? '';
-
-    // Validate that we have either partner or chatId
-    if (widget.chatId == null && widget.partner == null) {
-      _showErrorAndNavigateBack();
+    final currentUser = _auth.currentUser;
+    if (currentUser == null) {
+      _setError('No user logged in');
       return;
     }
+    _currentUserId = currentUser.uid;
+    _chatId = widget.chatId;
+    _partner = widget.partner;
 
-    // Set up chat ID and partner info
-    if (widget.chatId != null) {
-      _chatId = widget.chatId!;
-      _loadChatInfo();
-    } else if (widget.partner != null) {
-      _partner = widget.partner!;
-      // Generate a unique chat ID based on user IDs
-      final List<String> userIds = [_currentUserId, _partner!['uid']];
-      userIds.sort();
-      _chatId = 'chat_${userIds.join("_")}';
-
-      // Initialize chat if it doesn't exist
-      _initializeChat();
-    }
+    _initializeChat();
   }
 
-  @override
-  void dispose() {
-    _controller.dispose();
-    _scrollController.dispose();
-    super.dispose();
-  }
-
-  void _showErrorAndNavigateBack() {
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Error: No chat information provided')),
-      );
-      Navigator.of(context).pop();
+  void _setError(String message) {
+    setState(() {
+      _errorMessage = message;
+      _isLoading = false;
     });
   }
 
   Future<void> _initializeChat() async {
-    // Check if chat already exists
-    final chatDoc = await _firestore.collection('chats').doc(_chatId).get();
-
-    if (!chatDoc.exists) {
-      // Create a new chat document
-      await _firestore.collection('chats').doc(_chatId).set({
-        'participants': [_currentUserId, _partner?['uid']],
-        'createdAt': FieldValue.serverTimestamp(),
-        'lastMessage': '',
-        'lastMessageTimestamp': FieldValue.serverTimestamp(),
-      });
-    }
-
-    // Set up messages stream
-    _setUpMessagesStream();
-    setState(() => _isLoading = false);
-  }
-
-  Future<void> _loadChatInfo() async {
     try {
       final chatDoc = await _firestore.collection('chats').doc(_chatId).get();
-      if (chatDoc.exists) {
-        final participants = chatDoc['participants'] as List<dynamic>;
-        final partnerId = participants.firstWhere(
-          (id) => id != _currentUserId,
-          orElse: () => participants.isNotEmpty ? participants[0] : '',
-        );
 
-        final userDoc =
-            await _firestore.collection('users').doc(partnerId.toString()).get();
-        if (userDoc.exists) {
-          setState(() {
-            _partner = userDoc.data() as Map<String, dynamic>;
-            _isLoading = false;
-          });
-          _setUpMessagesStream();
-        } else {
-          _showErrorAndNavigateBack();
-        }
+      if (!chatDoc.exists) {
+        // Create the chat if it doesn't exist
+        await _firestore.collection('chats').doc(_chatId).set({
+          'participants': [_currentUserId, _partner['uid']],
+          'createdAt': FieldValue.serverTimestamp(),
+          'lastMessage': '',
+          'lastMessageTimestamp': FieldValue.serverTimestamp(),
+        });
       } else {
-        _showErrorAndNavigateBack();
+        // Fix any issues with participants
+        final rawParticipants = chatDoc['participants'] as List<dynamic>? ?? [];
+        
+        // Filter out null values and ensure both users are in participants
+        final validParticipants = rawParticipants
+            .where((id) => id != null)
+            .map((id) => id.toString())
+            .toSet() // Use set to avoid duplicates
+            .toList();
+        
+        // Add current user if not already in participants
+        if (!validParticipants.contains(_currentUserId)) {
+          validParticipants.add(_currentUserId);
+        }
+        
+        // Add partner if not already in participants
+        if (!validParticipants.contains(_partner['uid'])) {
+          validParticipants.add(_partner['uid']);
+        }
+        
+        // Update participants if needed
+        if (validParticipants.length != rawParticipants.length || 
+            rawParticipants.any((id) => id == null)) {
+          await _firestore.collection('chats').doc(_chatId).update({
+            'participants': validParticipants,
+          });
+        }
       }
+
+      _setUpMessagesStream();
+      setState(() => _isLoading = false);
     } catch (e) {
-      _showErrorAndNavigateBack();
+      _setError('Failed to initialize chat: $e');
     }
   }
 
   void _setUpMessagesStream() {
-    setState(() {
-      _messagesStream = _firestore
-          .collection('chats')
-          .doc(_chatId)
-          .collection('messages')
-          .orderBy('timestamp', descending: false)
-          .snapshots();
-    });
+    _messagesStream = _firestore
+        .collection('chats')
+        .doc(_chatId)
+        .collection('messages')
+        .orderBy('timestamp', descending: false)
+        .snapshots();
   }
 
   void _sendMessage() async {
@@ -190,7 +164,7 @@ class _ChatPageState extends State<ChatPage> {
               radius: 16,
               backgroundColor: Colors.blue,
               child: Text(
-                _getAvatarEmoji(_partner?['email'] ?? ''),
+                _getAvatarEmoji(_partner['email'] ?? ''),
                 style: const TextStyle(fontSize: 14),
               ),
             ),
@@ -201,8 +175,10 @@ class _ChatPageState extends State<ChatPage> {
                   isMe ? CrossAxisAlignment.end : CrossAxisAlignment.start,
               children: [
                 Container(
-                  padding:
-                      const EdgeInsets.symmetric(vertical: 10, horizontal: 14),
+                  padding: const EdgeInsets.symmetric(
+                    vertical: 10,
+                    horizontal: 14,
+                  ),
                   decoration: BoxDecoration(
                     color: isMe ? Colors.blue : Colors.grey[200],
                     borderRadius: BorderRadius.circular(18),
@@ -239,30 +215,85 @@ class _ChatPageState extends State<ChatPage> {
   }
 
   String _getAvatarEmoji(String email) {
+    if (email.isEmpty) return '👤';
     final hash = email.hashCode;
     final emojis = ['👤', '👨', '👩', '🧑', '👨‍💼', '👩‍💼', '🧑‍💼'];
     return emojis[hash.abs() % emojis.length];
   }
 
   String _getDisplayName(String email) {
+    if (email.isEmpty) return 'Unknown';
     final namePart = email.split('@').first;
     return namePart
         .split('.')
-        .map((part) =>
-            part.isEmpty ? part : part[0].toUpperCase() + part.substring(1))
+        .map(
+          (part) =>
+              part.isEmpty ? part : part[0].toUpperCase() + part.substring(1),
+        )
         .join(' ');
+  }
+
+  Widget _buildErrorScreen() {
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Error'),
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back),
+          onPressed: () => Navigator.of(context).pop(),
+        ),
+      ),
+      body: Center(
+        child: Padding(
+          padding: const EdgeInsets.all(20.0),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const Icon(Icons.error_outline, size: 64, color: Colors.red),
+              const SizedBox(height: 20),
+              Text(
+                _errorMessage ?? 'An unknown error occurred',
+                textAlign: TextAlign.center,
+                style: const TextStyle(fontSize: 18),
+              ),
+              const SizedBox(height: 30),
+              ElevatedButton(
+                onPressed: () => Navigator.of(context).pop(),
+                child: const Text('Go Back'),
+              ),
+              if (_errorMessage?.contains('Failed to initialize chat') ?? false)
+                const SizedBox(height: 20),
+              if (_errorMessage?.contains('Failed to initialize chat') ?? false)
+                ElevatedButton(
+                  onPressed: () async {
+                    setState(() {
+                      _isLoading = true;
+                      _errorMessage = null;
+                    });
+                    await _initializeChat();
+                  },
+                  child: const Text('Retry'),
+                ),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
-    if (_isLoading || _partner == null) {
+    if (_errorMessage != null) {
+      return _buildErrorScreen();
+    }
+
+    if (_isLoading) {
       return Scaffold(
         appBar: AppBar(title: const Text('Loading chat...')),
         body: const Center(child: CircularProgressIndicator()),
       );
     }
 
-    final partnerEmail = _partner?['email'] ?? 'Unknown';
+    final partnerEmail = _partner['email'] ?? 'Unknown';
     final partnerName = _getDisplayName(partnerEmail);
 
     return Scaffold(
@@ -283,7 +314,9 @@ class _ChatPageState extends State<ChatPage> {
                 Text(
                   partnerName,
                   style: const TextStyle(
-                      fontSize: 16, fontWeight: FontWeight.bold),
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                  ),
                 ),
                 const Text(
                   'Online',

@@ -18,6 +18,7 @@ class NavigationPage extends StatefulWidget {
   final List<Map<String, dynamic>>? matchedPartners;
   final LatLng? destinationLatLng;
   final VoidCallback onStartJourney;
+  final VoidCallback onEndJourney;
 
   const NavigationPage({
     super.key,
@@ -27,6 +28,7 @@ class NavigationPage extends StatefulWidget {
     this.destinationLatLng,
     this.isWalkingTogether = false,
     this.matchedPartners,
+    required this.onEndJourney,
   });
 
   @override
@@ -87,7 +89,7 @@ class _NavigationPageState extends State<NavigationPage> {
     _safetyAudioPlayer.dispose();
     _flutterTts.stop();
     _compassSubscription?.cancel();
-    _autoRecalibrateTimer?.cancel(); 
+    _autoRecalibrateTimer?.cancel();
     super.dispose();
   }
 
@@ -578,6 +580,11 @@ class _NavigationPageState extends State<NavigationPage> {
     _locationTimer?.cancel();
     _routeCheckTimer?.cancel();
     _flutterTts.stop();
+
+    // Call the callback to reset the MapPage state
+    widget.onEndJourney();
+
+    // Then navigate back
     Navigator.pop(context);
   }
 
