@@ -2,8 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:speech_to_text/speech_to_text.dart' as stt;
 import 'package:flutter_tts/flutter_tts.dart';
 import 'package:audioplayers/audioplayers.dart';
-import 'package:http/http.dart' as http;
-import 'dart:convert';
+import 'package:firebase_ai/firebase_ai.dart';
 
 class SafetyCompanionBottomSheetAI extends StatefulWidget {
   final VoidCallback? onBack;
@@ -18,23 +17,26 @@ class _SafetyCompanionBottomSheetAIState
     extends State<SafetyCompanionBottomSheetAI> {
   late stt.SpeechToText _speech;
   late FlutterTts _tts;
+  late GenerativeModel _model;
   final AudioPlayer _audioPlayer = AudioPlayer();
 
   bool _isListening = false;
   bool _isResponding = false;
   String _recognizedText = "Tap the mic and start speaking…";
-  final String _apiKey = "AIzaSyDMAuyquC_htfp_w5Q1n-NA1Hg3ccBeXeU";
 
+  @override
   @override
   void initState() {
     super.initState();
     _speech = stt.SpeechToText();
     _tts = FlutterTts();
 
-    // Configure TTS
     _tts.setLanguage('en-US');
     _tts.setPitch(1.0);
     _tts.setSpeechRate(0.5);
+
+    // initialize Gemini via Firebase AI
+    _model = FirebaseAI.googleAI().generativeModel(model: 'gemini-2.5-flash');
   }
 
   Future<void> _startListening() async {
@@ -45,15 +47,17 @@ class _SafetyCompanionBottomSheetAIState
 
     if (available) {
       setState(() => _isListening = true);
-      _speech.listen(onResult: (result) {
-        setState(() {
-          _recognizedText = result.recognizedWords;
-        });
+      _speech.listen(
+        onResult: (result) {
+          setState(() {
+            _recognizedText = result.recognizedWords;
+          });
 
-        if (result.finalResult) {
-          _respondToUser(_recognizedText);
-        }
-      });
+          if (result.finalResult) {
+            _respondToUser(_recognizedText);
+          }
+        },
+      );
     }
   }
 
@@ -64,120 +68,63 @@ class _SafetyCompanionBottomSheetAIState
 
   Future<String> _getGeminiResponse(String prompt) async {
     try {
-      const url =
-          'https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent';
-
-      final response = await http.post(
-        Uri.parse('$url?key=$_apiKey'),
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: jsonEncode({
-          'contents': [
-            {
-              'parts': [
-                {
-                  'text':
-                      'You are a helpful safety companion. Provide concise, supportive responses focused on safety and well-being. Keep responses under 150 words.'
-                },
-                {'text': prompt}
-              ]
-            }
-          ],
-          'generationConfig': {
-            'temperature': 0.7,
-            'maxOutputTokens': 300,
-            'topP': 0.8,
-            'topK': 40,
-          },
-          'safetySettings': [
-            {
-              'category': 'HARM_CATEGORY_HARASSMENT',
-              'threshold': 'BLOCK_MEDIUM_AND_ABOVE'
-            },
-            {
-              'category': 'HARM_CATEGORY_HATE_SPEECH',
-              'threshold': 'BLOCK_MEDIUM_AND_ABOVE'
-            },
-            {
-              'category': 'HARM_CATEGORY_SEXUALLY_EXPLICIT',
-              'threshold': 'BLOCK_MEDIUM_AND_ABOVE'
-            },
-            {
-              'category': 'HARM_CATEGORY_DANGEROUS_CONTENT',
-              'threshold': 'BLOCK_MEDIUM_AND_ABOVE'
-            },
-          ]
-        }),
-      );
-
-      if (response.statusCode == 200) {
-        final data = jsonDecode(response.body);
-        
-        // Check if the response contains candidates
-        if (data['candidates'] != null && 
-            data['candidates'].isNotEmpty && 
-            data['candidates'][0]['content'] != null &&
-            data['candidates'][0]['content']['parts'] != null &&
-            data['candidates'][0]['content']['parts'].isNotEmpty) {
-          
-          return data['candidates'][0]['content']['parts'][0]['text'];
-        } else if (data['promptFeedback'] != null) {
-          // Handle cases where the prompt was blocked
-          throw Exception('Prompt was blocked due to safety concerns');
-        } else {
-          throw Exception('Unexpected response format from Gemini API');
-        }
-      } else {
-        debugPrint('Gemini API Error: ${response.statusCode} - ${response.body}');
-        
-        // Handle specific HTTP errors
-        if (response.statusCode == 400) {
-          throw Exception('Bad request - check your API key and parameters');
-        } else if (response.statusCode == 403) {
-          throw Exception('API key is invalid or has insufficient permissions');
-        } else if (response.statusCode == 429) {
-          throw Exception('Rate limit exceeded - try again later');
-        } else if (response.statusCode >= 500) {
-          throw Exception('Server error - try again later');
-        } else {
-          throw Exception('Failed to get response: ${response.statusCode}');
-        }
-      }
+      final response = await _model.generateContent([
+        Content.text(
+          'You are a helpful safety companion. Provide concise, supportive responses focused on safety and well-being. Keep responses under 150 words.',
+        ),
+        Content.text(prompt),
+      ]);
+      return response.text ?? "I couldn't generate a response.";
     } catch (e) {
-      debugPrint('Error in _getGeminiResponse: $e');
-      rethrow;
+      debugPrint('Gemini error: $e');
+      throw Exception("Error fetching Gemini response: $e");
     }
   }
 
   Future<void> _respondToUser(String userText) async {
     if (userText.isEmpty) return;
 
-    setState(() => _isResponding = true);
+    setState(() {
+      _isResponding = true;
+      _isListening = false; // ensure reset
+    });
 
     try {
       final response = await _getGeminiResponse(userText);
       setState(() {
         _recognizedText = response;
       });
+
+      // Restart listening after TTS completes
+      _tts.setCompletionHandler(() {
+        setState(() => _isResponding = false);
+        if (!_isListening) {
+          _startListening();
+        }
+      });
+
       await _tts.speak(response);
     } catch (e) {
       debugPrint('Error in _respondToUser: $e');
       setState(() {
-        _recognizedText = "Sorry, I'm having trouble connecting. Please try again. Error: ${e.toString()}";
+        _recognizedText =
+            "Sorry, I'm having trouble connecting. Please try again. Error: ${e.toString()}";
       });
-      await _tts.speak("Sorry, I'm having trouble connecting. Please try again.");
-    } finally {
-      setState(() => _isResponding = false);
+
+      _tts.setCompletionHandler(() {
+        setState(() => _isResponding = false);
+        if (!_isListening) {
+          _startListening();
+        }
+      });
+
+      await _tts.speak(
+        "Sorry, I'm having trouble connecting. Please try again.",
+      );
     }
   }
 
   Widget _buildMicButton() {
-    if (_isResponding) {
-      return const CircularProgressIndicator(
-        valueColor: AlwaysStoppedAnimation<Color>(Colors.orange),
-      );
-    }
     return Icon(
       _isListening ? Icons.mic : Icons.mic_none,
       color: _isListening ? Colors.red : Colors.orange,
@@ -212,7 +159,7 @@ class _SafetyCompanionBottomSheetAIState
                 ),
               const Expanded(
                 child: Text(
-                  'Safety Companion (Gemini)',
+                  'AI Live Chat (Gemini)',
                   style: TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.bold,
@@ -240,16 +187,19 @@ class _SafetyCompanionBottomSheetAIState
           IconButton(
             iconSize: 48,
             icon: _buildMicButton(),
-            onPressed:
-                _isResponding ? null : _isListening ? _stopListening : _startListening,
+            onPressed: _isResponding
+                ? null
+                : _isListening
+                ? _stopListening
+                : _startListening,
           ),
           const SizedBox(height: 8),
           Text(
             _isResponding
                 ? "Processing..."
                 : _isListening
-                    ? "Listening…"
-                    : "Tap to talk",
+                ? "Listening…"
+                : "Tap to talk",
             style: const TextStyle(fontSize: 12, color: Colors.grey),
           ),
         ],
