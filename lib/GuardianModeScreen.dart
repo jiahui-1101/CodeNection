@@ -444,36 +444,6 @@ class _GuardianModeScreenState extends State<GuardianModeScreen> {
         floatingActionButton: Column(
           mainAxisAlignment: MainAxisAlignment.end,
           children: [
-            FloatingActionButton(
-              onPressed: () => showDialog(
-                context: context,
-                builder: (context) => AlertDialog(
-                  title: const Text("Route Information"),
-                  content: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        "Distance remaining: ${_trackedDistance.toStringAsFixed(2)} meters",
-                      ),
-                      Text("Route points: ${_polylines.isNotEmpty ? _polylines.first.points.length : 0}"),
-                      Text(
-                        "Status: ${_routeTracker?.isTracking == true ? 'Tracking' : 'Not Tracking'}",
-                      ),
-                    ],
-                  ),
-                  actions: [
-                    TextButton(
-                      onPressed: () => Navigator.of(context).pop(),
-                      child: const Text("OK"),
-                    ),
-                  ],
-                ),
-              ),
-              backgroundColor: Colors.white,
-              foregroundColor: Colors.red.shade900,
-              child: const Icon(Icons.route),
-            ),
             const SizedBox(height: 16),
             FloatingActionButton(
               onPressed: () =>
