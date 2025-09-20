@@ -9,6 +9,7 @@ class PairResultPage extends StatefulWidget {
   final String destination;
   final List<Map<String, dynamic>> matchedPartners;
   final VoidCallback onStartJourney;
+  final VoidCallback onEndJourney;
 
   const PairResultPage({
     super.key,
@@ -16,6 +17,7 @@ class PairResultPage extends StatefulWidget {
     required this.destination,
     required this.matchedPartners,
     required this.onStartJourney,
+    required this.onEndJourney,
   });
 
   @override
@@ -73,6 +75,7 @@ class _PairResultPageState extends State<PairResultPage> {
           onStartJourney: () {
             debugPrint("Journey started from PairResultPage ✅");
           },
+          onEndJourney: widget.onEndJourney,
         ),
       ),
     );
