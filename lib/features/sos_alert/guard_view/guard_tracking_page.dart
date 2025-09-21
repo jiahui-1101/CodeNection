@@ -365,60 +365,6 @@ class _TrackingPageState extends State<TrackingPage> {
         title: const Text("Tracking Alert"),
         backgroundColor: Colors.red.shade700,
         foregroundColor: Colors.white,
-        actions: [
-          // 添加路线跟踪信息按钮
-          IconButton(
-            icon: const Icon(Icons.route),
-            onPressed: () {
-              showDialog(
-                context: context,
-                builder: (context) => AlertDialog(
-                  title: const Text("Route Information"),
-                  content: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        "Distance traveled: ${_trackedDistance.toStringAsFixed(2)} meters",
-                      ),
-                      Text("Points recorded: $_trackedPoints"),
-                      Text(
-                        "Status: ${_routeTracker?.isTracking == true ? 'Tracking' : 'Not Tracking'}",
-                      ),
-                    ],
-                  ),
-                  actions: [
-                    TextButton(
-                      onPressed: () => Navigator.of(context).pop(),
-                      child: const Text("OK"),
-                    ),
-                    if (_routeTracker?.isTracking == true)
-                      TextButton(
-                        onPressed: () {
-                          _routeTracker?.stopTracking();
-                          Navigator.of(context).pop();
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
-                              content: Text("Route tracking stopped"),
-                            ),
-                          );
-                        },
-                        child: const Text("Stop Tracking"),
-                      ),
-                    if (!(_routeTracker?.isTracking == true))
-                      TextButton(
-                        onPressed: () {
-                          _startRouteTracking();
-                          Navigator.of(context).pop();
-                        },
-                        child: const Text("Start Tracking"),
-                      ),
-                  ],
-                ),
-              );
-            },
-          ),
-        ],
       ),
       body: StreamBuilder<List<DocumentSnapshot>>(
         stream: CombineLatestStream.combine2(
