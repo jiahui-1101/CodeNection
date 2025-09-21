@@ -22,9 +22,9 @@ class _SafetyCompanionBottomSheetAIState
 
   bool _isListening = false;
   bool _isResponding = false;
+  bool _isSpeaking = false; // New flag to track TTS state
   String _recognizedText = "Tap the mic and start speaking…";
 
-  @override
   @override
   void initState() {
     super.initState();
@@ -34,6 +34,30 @@ class _SafetyCompanionBottomSheetAIState
     _tts.setLanguage('en-US');
     _tts.setPitch(1.0);
     _tts.setSpeechRate(0.5);
+    
+    // Set up TTS event handlers
+    _tts.setStartHandler(() {
+      setState(() {
+        _isSpeaking = true;
+      });
+    });
+    
+    _tts.setCompletionHandler(() {
+      setState(() {
+        _isSpeaking = false;
+        _isResponding = false;
+      });
+      if (!_isListening) {
+        _startListening();
+      }
+    });
+    
+    _tts.setErrorHandler((message) {
+      setState(() {
+        _isSpeaking = false;
+        _isResponding = false;
+      });
+    });
 
     // initialize Gemini via Firebase AI
     _model = FirebaseAI.googleAI().generativeModel(model: 'gemini-2.5-flash');
@@ -95,27 +119,12 @@ class _SafetyCompanionBottomSheetAIState
         _recognizedText = response;
       });
 
-      // Restart listening after TTS completes
-      _tts.setCompletionHandler(() {
-        setState(() => _isResponding = false);
-        if (!_isListening) {
-          _startListening();
-        }
-      });
-
       await _tts.speak(response);
     } catch (e) {
       debugPrint('Error in _respondToUser: $e');
       setState(() {
         _recognizedText =
             "Sorry, I'm having trouble connecting. Please try again. Error: ${e.toString()}";
-      });
-
-      _tts.setCompletionHandler(() {
-        setState(() => _isResponding = false);
-        if (!_isListening) {
-          _startListening();
-        }
       });
 
       await _tts.speak(
@@ -125,11 +134,19 @@ class _SafetyCompanionBottomSheetAIState
   }
 
   Widget _buildMicButton() {
-    return Icon(
-      _isListening ? Icons.mic : Icons.mic_none,
-      color: _isListening ? Colors.red : Colors.orange,
-      size: 48,
-    );
+    if (_isSpeaking) {
+      return const Icon(
+        Icons.volume_up,
+        color: Colors.blue,
+        size: 48,
+      );
+    } else {
+      return Icon(
+        _isListening ? Icons.mic : Icons.mic_none,
+        color: _isListening ? Colors.red : Colors.orange,
+        size: 48,
+      );
+    }
   }
 
   @override
@@ -171,35 +188,30 @@ class _SafetyCompanionBottomSheetAIState
             ],
           ),
           const SizedBox(height: 12),
-          _isResponding
-              ? const Padding(
-                  padding: EdgeInsets.all(16.0),
-                  child: CircularProgressIndicator(
-                    valueColor: AlwaysStoppedAnimation<Color>(Colors.orange),
-                  ),
-                )
-              : Text(
-                  _recognizedText,
-                  style: const TextStyle(fontSize: 14, color: Colors.black87),
-                  textAlign: TextAlign.center,
-                ),
+          Text(
+            _recognizedText,
+            style: const TextStyle(fontSize: 14, color: Colors.black87),
+            textAlign: TextAlign.center,
+          ),
           const SizedBox(height: 20),
           IconButton(
             iconSize: 48,
             icon: _buildMicButton(),
-            onPressed: _isResponding
+            onPressed: (_isResponding || _isSpeaking)
                 ? null
                 : _isListening
-                ? _stopListening
-                : _startListening,
+                    ? _stopListening
+                    : _startListening,
           ),
           const SizedBox(height: 8),
           Text(
             _isResponding
                 ? "Processing..."
-                : _isListening
-                ? "Listening…"
-                : "Tap to talk",
+                : _isSpeaking
+                    ? "AI is speaking..."
+                    : _isListening
+                        ? "Listening…"
+                        : "Tap to talk",
             style: const TextStyle(fontSize: 12, color: Colors.grey),
           ),
         ],
