@@ -142,16 +142,15 @@ class _SafetyCompanionBottomSheetVCState
   int _currentMessageIndex = 0;
   double _volume = 1.0;
 
-  final List<String> encouragingMessages = const [
-    'audio/mom_encouragement.mp3',
-    'audio/dad_support.mp3',
-    'audio/friend_cheer.mp3',
-  ];
+  // Updated to use numbered MP3 files
+  final List<String> encouragingMessages = List.generate(
+    13,
+    (index) => 'audio/${index + 1}.mp3',
+  );
 
-  final Map<String, String> messageNames = const {
-    'audio/mom_encouragement.mp3': "Mom's Voice",
-    'audio/dad_support.mp3': "Dad's Voice",
-    'audio/friend_cheer.mp3': "Friend's Voice",
+  // Updated message names for numbered files
+  final Map<String, String> messageNames = {
+    for (int i = 1; i <= 13; i++) 'audio/$i.mp3': 'Encouragement $i',
   };
 
   @override
@@ -269,7 +268,9 @@ class _SafetyCompanionBottomSheetVCState
               Text(
                 '${_getVolumeIcon()} ${(_volume * 100).toInt()}%',
                 style: const TextStyle(
-                    fontSize: 14, fontWeight: FontWeight.bold),
+                  fontSize: 14,
+                  fontWeight: FontWeight.bold,
+                ),
               ),
               IconButton(
                 icon: const Icon(Icons.volume_up, color: Colors.blue),
@@ -289,7 +290,8 @@ class _SafetyCompanionBottomSheetVCState
                 ),
                 onPressed: _isPlaying
                     ? _stopAudio
-                    : () => _playAudio(encouragingMessages[_currentMessageIndex]),
+                    : () =>
+                          _playAudio(encouragingMessages[_currentMessageIndex]),
               ),
               Text(
                 messageNames[encouragingMessages[_currentMessageIndex]] ??
@@ -318,5 +320,4 @@ class _SafetyCompanionBottomSheetVCState
       ),
     );
   }
-}  
-
+}
