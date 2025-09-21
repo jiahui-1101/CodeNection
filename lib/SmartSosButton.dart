@@ -6,7 +6,7 @@ import 'package:hello_flutter/GuardianModeScreen.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart'; 
 import 'package:geolocator/geolocator.dart'; 
-
+import 'package:firebase_messaging/firebase_messaging.dart';
 class SmartSosButton extends StatefulWidget {
   final Function? onEmergencyDetected;
 
@@ -149,15 +149,33 @@ Future<void> _triggerAndNavigateGuardian(String message,
     print("Failed to get location: $e");
   }
 
+   final contactsSnapshot = await FirebaseFirestore.instance
+      .collection('users')
+      .doc(currentUser.uid)
+      .collection('emergency_contacts')
+      .get();
+
+  List<Map<String, String>> emergencyContactsList = [];
+
+  for (var doc in contactsSnapshot.docs) {
+    emergencyContactsList.add({
+      'name': doc.data()['name'] as String,
+      'phone': doc.data()['phone'] as String,
+    });
+  }
+  final userFcmToken = await FirebaseMessaging.instance.getToken();
 
   final docRef = await FirebaseFirestore.instance.collection('alerts').add({
     'status': 'pending',
     'type': type,
     'timestamp': FieldValue.serverTimestamp(),
     'userId': currentUser.uid,
+    'userName': currentUser.displayName ?? 'A User', 
     'title': message, 
     'latitude': position?.latitude,   
     'longitude': position?.longitude,
+    'emergencyContacts': emergencyContactsList,
+     'userFcmToken': userFcmToken,
   });
 
   final alertId = docRef.id;

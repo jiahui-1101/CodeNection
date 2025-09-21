@@ -37,18 +37,17 @@ class _TrackingPageState extends State<TrackingPage> {
   final AudioPlayer _audioPlayer = AudioPlayer();
   late LocationService _guardLocationService;
 
-  // 音频播放状态变量
+
   String? _currentlyPlayingDocId;
   Duration _currentPosition = Duration.zero;
   Duration _totalDuration = Duration.zero;
-  bool _isSeeking = false;
+  final bool _isSeeking = false;
   bool _isLoading = false;
   bool _isCompleted = false;
 
-  // 路线跟踪
   RouteTracker? _routeTracker; // <-- made nullable
-  double _trackedDistance = 0;
-  int _trackedPoints = 0;
+  final double _trackedDistance = 0;
+  final int _trackedPoints = 0;
 
   // Subscriptions so we can cancel them cleanly
   StreamSubscription<Duration>? _positionSub;
@@ -59,25 +58,25 @@ class _TrackingPageState extends State<TrackingPage> {
   void initState() {
     super.initState();
 
-    // 开始共享守卫的位置
+
     _guardLocationService = LocationService(widget.guardId, isAlert: false);
     _guardLocationService.startSharingLocation();
 
-    // 其他服务
+    
     _initAudioSession();
     _listenPlayer();
-    // 开始跟踪将在获取到用户位置后设置
+
   }
 
   Future<void> _setupRouteTracking() async {
     try {
-      // 确保有用户位置作为目的地
+  
       if (_userPosition == null) {
         return;
       }
       _routeTracker = RouteTracker(
         apiKey: _apiKey,
-        origin: _guardPosition, // 如果为null，RouteTracker会使用当前位置
+        origin: _guardPosition, 
         destination: _userPosition!,
         onRouteReady: (points) {
           if (!mounted) return;
@@ -110,7 +109,7 @@ class _TrackingPageState extends State<TrackingPage> {
         onArrived: () {
           if (!mounted) return;
           setState(() {
-            // 到达目的地
+         
           });
         },
         onError: (err) {
@@ -268,8 +267,9 @@ class _TrackingPageState extends State<TrackingPage> {
   Future<void> _updateCameraBounds() async {
     if (_userPosition == null ||
         _guardPosition == null ||
-        !_mapControllerCompleter.isCompleted)
+        !_mapControllerCompleter.isCompleted) {
       return;
+    }
 
     final controller = await _mapControllerCompleter.future;
     controller.animateCamera(
@@ -298,8 +298,9 @@ class _TrackingPageState extends State<TrackingPage> {
   }
 
   LatLng? _extractLatLng(Map<String, dynamic>? data) {
-    if (data == null || data['latitude'] == null || data['longitude'] == null)
+    if (data == null || data['latitude'] == null || data['longitude'] == null) {
       return null;
+    }
     return LatLng(data['latitude'], data['longitude']);
   }
 
@@ -340,7 +341,7 @@ class _TrackingPageState extends State<TrackingPage> {
 
   @override
   void dispose() {
-    _routeRecalculationTimer?.cancel(); // 如果定时器已被移除，这行可保留或删除
+    _routeRecalculationTimer?.cancel(); 
     _positionSub?.cancel();
     _playerStateSub?.cancel();
     _durationSub?.cancel();
@@ -366,7 +367,7 @@ class _TrackingPageState extends State<TrackingPage> {
         backgroundColor: Colors.red.shade700,
         foregroundColor: Colors.white,
         actions: [
-          // 添加路线跟踪信息按钮
+          // Add the route information button
           IconButton(
             icon: const Icon(Icons.route),
             onPressed: () {
@@ -427,15 +428,17 @@ class _TrackingPageState extends State<TrackingPage> {
           (a, b) => [a, b],
         ),
         builder: (context, snapshot) {
-          if (!snapshot.hasData)
+          if (!snapshot.hasData) {
             return const Center(child: CircularProgressIndicator());
+          }
 
           final alertSnap = snapshot.data![0];
           final guardSnap = snapshot.data![1];
-          if (!alertSnap.exists)
+          if (!alertSnap.exists) {
             return const Center(
               child: Text("Alert has been resolved or deleted."),
             );
+          }
 
           final alertData = alertSnap.data() as Map<String, dynamic>;
           final guardData = guardSnap.data() as Map<String, dynamic>?;
@@ -524,8 +527,9 @@ class _TrackingPageState extends State<TrackingPage> {
     }
     _updateCameraBounds();
 
-    if (_userPosition == null)
+    if (_userPosition == null) {
       return const Center(child: Text("Waiting for user location..."));
+    }
 
     return GoogleMap(
       onMapCreated: (controller) {

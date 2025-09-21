@@ -52,7 +52,7 @@ class _GuardianModeScreenState extends State<GuardianModeScreen> {
 
   // 路线跟踪
   double _trackedDistance = 0;
-  int _trackedPoints = 0;
+  final int _trackedPoints = 0;
   bool _isRouteTrackerInitialized = false;
   final String _apiKey = "AIzaSyALfVigfIlFFmcVIEy-5OGos42GViiQe-M";
 
@@ -271,7 +271,9 @@ class _GuardianModeScreenState extends State<GuardianModeScreen> {
   Future<void> _updateCameraBounds() async {
     if (!mounted ||
         _userPosition == null ||
-        !_mapControllerCompleter.isCompleted) return;
+        !_mapControllerCompleter.isCompleted) {
+      return;
+    }
 
     final controller = await _mapControllerCompleter.future;
 
@@ -398,7 +400,7 @@ class _GuardianModeScreenState extends State<GuardianModeScreen> {
                       ),
                       if (_distanceRemaining.isNotEmpty)
                         Text(
-                          "Guard is ${_distanceRemaining} away (${_durationRemaining})",
+                          "Guard is $_distanceRemaining away ($_durationRemaining)",
                           style: const TextStyle(
                             color: Colors.white,
                             fontSize: 14,

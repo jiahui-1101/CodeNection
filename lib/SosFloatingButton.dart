@@ -1,12 +1,11 @@
-// 文件名: SosAppBarButton.dart
-
 import 'package:flutter/material.dart';
 import 'dart:async';
 import 'package:hello_flutter/GuardianModeScreen.dart';
 import 'package:audioplayers/audioplayers.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:geolocator/geolocator.dart'; // ✅ 1. 添加 geolocator 的 import
+import 'package:geolocator/geolocator.dart'; 
+import 'package:firebase_messaging/firebase_messaging.dart';
 
 class SosAppBarButton extends StatefulWidget {
   const SosAppBarButton({super.key});
@@ -22,7 +21,7 @@ class _SosAppBarButtonState extends State<SosAppBarButton> {
 
   void _startLongPress(BuildContext context) {
     setState(() {
-      _countdown = 3; // 初始化倒计时
+      _countdown = 3; 
     });
 
     _longPressTimer = Timer.periodic(const Duration(seconds: 1), (timer) async {
@@ -37,7 +36,6 @@ class _SosAppBarButtonState extends State<SosAppBarButton> {
 
         final currentUser = FirebaseAuth.instance.currentUser;
         if (currentUser == null) {
-          // ... (用户未登录的逻辑不变)
           return;
         }
 
@@ -49,29 +47,42 @@ class _SosAppBarButtonState extends State<SosAppBarButton> {
             .get();
 
         if (duressQuery.docs.isNotEmpty) {
-           // ... (duress 检查逻辑不变)
           return;
         }
 
-        // ✅ 2. 新增：获取当前地理位置
         Position? position;
         try {
-          // 在实际项目中需要处理好权限请求
           position = await Geolocator.getCurrentPosition();
         } catch (e) {
           print("Failed to get location: $e");
-          // 即使获取位置失败，也继续发送警报，只是没有位置信息
         }
 
-        // ✅ 3. 修改：在创建 alert 时，把位置信息加进去
+         final contactsSnapshot = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(currentUser.uid)
+          .collection('emergency_contacts')
+          .get();
+
+        List<Map<String, String>> emergencyContactsList = [];
+
+        for (var doc in contactsSnapshot.docs) {
+        emergencyContactsList.add({
+          'name': doc.data()['name'] as String,
+          'phone': doc.data()['phone'] as String,
+        });
+      }
+        final userFcmToken = await FirebaseMessaging.instance.getToken();
         final docRef = await FirebaseFirestore.instance.collection('alerts').add({
           'status': 'pending',
           'type': 'security',
           'timestamp': FieldValue.serverTimestamp(),
           'userId': currentUser.uid,
+          'userName': currentUser.displayName ?? 'A User',
           'title': "SOS Long Press Triggered",
-          'latitude': position?.latitude,   // <--- 把纬度加上
-          'longitude': position?.longitude, // <--- 把经度加上
+          'latitude': position?.latitude,   
+          'longitude': position?.longitude,
+          'emergencyContacts': emergencyContactsList,
+           'userFcmToken': userFcmToken,
         });
         final alertId = docRef.id;
 

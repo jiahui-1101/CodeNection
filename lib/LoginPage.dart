@@ -1,8 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:google_sign_in/google_sign_in.dart';
-import 'package:hello_flutter/MainScreen.dart';
-import 'package:hello_flutter/CallManagementPage.dart';
 import 'RegisterPage.dart';
 import 'title.dart';
 // import 'features/sos_alert/service/firebase_api.dart';

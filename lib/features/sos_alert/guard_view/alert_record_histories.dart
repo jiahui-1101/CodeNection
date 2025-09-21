@@ -18,7 +18,7 @@ class _RecordingsPageState extends State<RecordingsPage> {
   String? _currentlyPlayingDocId;
   Duration _currentPosition = Duration.zero;
   Duration _totalDuration = Duration.zero;
-  bool _isSeeking = false;
+  final bool _isSeeking = false;
   bool _isLoading = false;
   bool _isCompleted = false;
 
@@ -124,7 +124,7 @@ class _RecordingsPageState extends State<RecordingsPage> {
   }
 
   String _formatDuration(Duration d) {
-    if (d == null || d.inSeconds < 0) return "00:00";
+    if (d.inSeconds < 0) return "00:00";
     String twoDigits(int n) => n.toString().padLeft(2, "0");
     final minutes = twoDigits(d.inMinutes.remainder(60));
     final seconds = twoDigits(d.inSeconds.remainder(60));
