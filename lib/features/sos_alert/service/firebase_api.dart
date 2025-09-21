@@ -2,7 +2,6 @@ import 'package:audioplayers/audioplayers.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/material.dart';
-// ✅ 1. 我们现在也需要 GuardianModeScreen 的 import
 import 'package:hello_flutter/GuardianModeScreen.dart';
 import '../guard_view/guard_tracking_page.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -17,11 +16,8 @@ Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
 
 class FirebaseApi {
   final _firebaseMessaging = FirebaseMessaging.instance;
-
-  // vvvvvvvvvvvvvv 这是我们升级了的、更聪明的 function vvvvvvvvvvvvvv
   void _handleMessage(RemoteMessage message) {
     final String? alertId = message.data['alertId'];
-    // ✅ 2. 先把标签拿出来
     final String? notificationType = message.data['notificationType'];
 
     if (alertId == null) {
@@ -29,10 +25,9 @@ class FirebaseApi {
       return;
     }
 
-    // ✅ 3. 用 switch 来“看标签做事”
     switch (notificationType) {
       case 'NEW_ALERT':
-        // 如果是给 Guard 的新警报
+
         final currentUser = FirebaseAuth.instance.currentUser;
         if (currentUser != null) {
           print("👮 Guard is viewing a NEW_ALERT. Navigating to GuardTrackingPage.");
@@ -46,7 +41,7 @@ class FirebaseApi {
             MaterialPageRoute(
               builder: (context) => TrackingPage(
                 alertId: alertId,
-                guardId: currentUser.uid, // 用 Guard 自己的 ID
+                guardId: currentUser.uid, 
               ),
             ),
           );
@@ -54,16 +49,15 @@ class FirebaseApi {
         break;
 
       case 'GUARD_ACCEPTED':
-        // 如果是给 User 的“Guard已接单”通知
+       
         print("🧑 User is notified that GUARD_ACCEPTED. Navigating to GuardianModeScreen.");
-        // 我们把用户带回到他自己的 GuardianModeScreen
-        // 注意：这里我们无法传递 audioPlayer，所以 GuardianModeScreen 需要能够处理这种情况
+    
         navigatorKey.currentState?.push(
           MaterialPageRoute(
             builder: (context) => GuardianModeScreen(
               alertId: alertId,
-              initialMessage: "Help is on the way!", // 可以给一个默认信息
-              audioPlayer: AudioPlayer(), // 创建一个新的实例，或者在 GuardianModeScreen 内部处理
+              initialMessage: "Help is on the way!",
+              audioPlayer: AudioPlayer(), 
             ),
           ),
         );
@@ -74,9 +68,7 @@ class FirebaseApi {
         break;
     }
   }
-  // ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-  // ... (你其他的 function 完全不用动) ...
   Future<void> setupInteractedMessage() async {
     RemoteMessage? initialMessage =
         await _firebaseMessaging.getInitialMessage();
