@@ -568,7 +568,7 @@ class _SettingsPageState extends State<SettingsPage> {
                   title: Text('Privacy Policy', style: titleStyle),
                   trailing: const Icon(Icons.arrow_forward_ios, size: 16),
                   onTap: () {
-                    // Navigate to privacy policy
+                    _showPrivacyPolicyDialog(context);
                   },
                 ),
               ],
@@ -773,6 +773,136 @@ class _SettingsPageState extends State<SettingsPage> {
     );
   }
 
+  void _showPrivacyPolicyDialog(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text('Privacy Policy'),
+          content: SizedBox(
+            width: double.maxFinite,
+            height: 400, // fixed height so it becomes scrollable
+            child: SingleChildScrollView(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: const [
+                  Text(
+                    "Privacy Policy for UTMBright\n",
+                    style: TextStyle(fontWeight: FontWeight.bold),
+                  ),
+                  Text(
+                    "UTMBright is committed to protecting your privacy. This Privacy Policy explains how we collect, use, store, and share your personal information when you use our safety and navigation mobile application. By using the App, you agree to the terms of this Privacy Policy.\n\n",
+                  ),
+
+                  Text(
+                    "1. Information We Collect\n",
+                    style: TextStyle(fontWeight: FontWeight.bold),
+                  ),
+                  Text(
+                    "a) Personal Information\n• Name, profile picture, email address, phone number.\n• Emergency contact details you add.\n• Duress PIN and Safe PIN (stored securely).\n\n",
+                  ),
+                  Text(
+                    "b) Location Data\n• Real-time GPS location (navigation, route selection, alerts).\n• Historical route data (temporarily stored).\n\n",
+                  ),
+                  Text(
+                    "c) Device & Usage Information\n• Device model, OS, app version.\n• Error logs, crash reports, usage data.\n\n",
+                  ),
+                  Text(
+                    "d) Incident Reports\n• Hazard/suspicious activity reports.\n• Uploaded text, location, photos (optional).\n\n",
+                  ),
+
+                  Text(
+                    "2. How We Use Your Information\n",
+                    style: TextStyle(fontWeight: FontWeight.bold),
+                  ),
+                  Text(
+                    "• Provide safe navigation & route recommendations.\n• Enable community walking groups (“Let’s Walk”).\n• Trigger SOS alerts with real-time data.\n• Operate Live Guardian Mode (audio streaming).\n• Support incident reporting.\n• Maintain Resources Hub.\n• Improve app performance.\n\n",
+                  ),
+
+                  Text(
+                    "3. Sharing of Information\n",
+                    style: TextStyle(fontWeight: FontWeight.bold),
+                  ),
+                  Text(
+                    "• Campus Security / Guard House (location, emergency type, duress alerts, audio stream).\n• Service Providers (Firebase, hosting, analytics).\n• Legal Authorities (when required by law).\n• Authorized Users in “Let’s Walk” (name, profile picture).\n\n",
+                  ),
+
+                  Text(
+                    "4. Data Storage & Security\n",
+                    style: TextStyle(fontWeight: FontWeight.bold),
+                  ),
+                  Text(
+                    "• Encrypted storage of GPS, PINs, contacts.\n• Emergency alerts retained only as needed.\n• Data sent via secure transmission (HTTPS/SSL).\n\n",
+                  ),
+
+                  Text(
+                    "5. Your Rights\n",
+                    style: TextStyle(fontWeight: FontWeight.bold),
+                  ),
+                  Text(
+                    "• Access/update profile & emergency info.\n• Request deletion of personal info.\n• Withdraw location/audio permissions.\n• Disable notifications.\n\n",
+                  ),
+
+                  Text(
+                    "6. Children’s Privacy\n",
+                    style: TextStyle(fontWeight: FontWeight.bold),
+                  ),
+                  Text(
+                    "Designed for UTM students/staff. Not intended for children under 13.\n\n",
+                  ),
+
+                  Text(
+                    "7. International Data Transfers\n",
+                    style: TextStyle(fontWeight: FontWeight.bold),
+                  ),
+                  Text(
+                    "If used outside Malaysia, data may be transferred abroad with safeguards.\n\n",
+                  ),
+
+                  Text(
+                    "8. Changes to This Policy\n",
+                    style: TextStyle(fontWeight: FontWeight.bold),
+                  ),
+                  Text(
+                    "We may update from time to time. Updates will be posted in the App.\n\n",
+                  ),
+
+                  Text(
+                    "9. Third-Party Services\n",
+                    style: TextStyle(fontWeight: FontWeight.bold),
+                  ),
+                  Text(
+                    "• Firebase (authentication, storage, analytics).\n• Google Maps API (navigation & safe routes).\n• Google Sign-In (secure login).\n• Flutter framework (app foundation).\n\nSee their privacy policies:\nFirebase: https://firebase.google.com/support/privacy\nGoogle Maps: https://policies.google.com/privacy\nGoogle Sign-In: https://policies.google.com/privacy\n\n",
+                  ),
+
+                  Text(
+                    "10. App Permissions\n",
+                    style: TextStyle(fontWeight: FontWeight.bold),
+                  ),
+                  Text(
+                    "• Location (required for navigation & alerts).\n• Microphone (Live Guardian Mode).\n• Camera & Storage (optional for reports).\n• Contacts (optional emergency contacts).\n• Notifications (alerts & updates).\n\n",
+                  ),
+
+                  Text(
+                    "11. Contact Us\n",
+                    style: TextStyle(fontWeight: FontWeight.bold),
+                  ),
+                  Text("📧 Email: utmbright@gmail.com\n"),
+                ],
+              ),
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text('Close'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
   void _showUpdatePasswordDialog() {
     TextEditingController currentController = TextEditingController();
     TextEditingController newController = TextEditingController();
@@ -969,48 +1099,48 @@ class _SettingsPageState extends State<SettingsPage> {
   }
 
   void _showTermsOfServiceDialog(BuildContext context) {
-  showDialog(
-    context: context,
-    builder: (BuildContext context) {
-      return AlertDialog(
-        title: const Text("Terms of Service"),
-        content: SizedBox(
-          height: 400, // 限制高度，避免超出屏幕
-          child: SingleChildScrollView(
-            child: const Text(
-              "Welcome to UTM Bright!\n\n"
-              "By using this app, you agree to the following Terms of Service:\n\n"
-              "1. Usage\n"
-              "- You agree to use this app responsibly and for lawful purposes only.\n\n"
-              "2. Account\n"
-              "- You are responsible for maintaining the confidentiality of your account.\n"
-              "- Any activity under your account is your responsibility.\n\n"
-              "3. Data & Privacy\n"
-              "- Your data will be stored securely and only used to provide app functionality.\n"
-              "- For details, please refer to our Privacy Policy.\n\n"
-              "4. Limitations\n"
-              "- We are not responsible for damages resulting from misuse of this app.\n"
-              "- The service may change, be suspended, or stopped at any time.\n\n"
-              "5. Acceptance\n"
-              "- By continuing to use this app, you acknowledge that you have read and agree to these Terms.\n\n"
-              "---\n"
-              "If you have any questions, contact us at utmbright@gmail.com",
-              style: TextStyle(fontSize: 14, height: 1.5),
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text("Terms of Service"),
+          content: SizedBox(
+            height: 400, // 限制高度，避免超出屏幕
+            child: SingleChildScrollView(
+              child: const Text(
+                "Welcome to UTM Bright!\n\n"
+                "By using this app, you agree to the following Terms of Service:\n\n"
+                "1. Usage\n"
+                "- You agree to use this app responsibly and for lawful purposes only.\n\n"
+                "2. Account\n"
+                "- You are responsible for maintaining the confidentiality of your account.\n"
+                "- Any activity under your account is your responsibility.\n\n"
+                "3. Data & Privacy\n"
+                "- Your data will be stored securely and only used to provide app functionality.\n"
+                "- For details, please refer to our Privacy Policy.\n\n"
+                "4. Limitations\n"
+                "- We are not responsible for damages resulting from misuse of this app.\n"
+                "- The service may change, be suspended, or stopped at any time.\n\n"
+                "5. Acceptance\n"
+                "- By continuing to use this app, you acknowledge that you have read and agree to these Terms.\n\n"
+                "---\n"
+                "If you have any questions, contact us at utmbright@gmail.com",
+                style: TextStyle(fontSize: 14, height: 1.5),
+              ),
             ),
           ),
-        ),
-        actions: [
-          TextButton(
-            child: const Text("Close"),
-            onPressed: () {
-              Navigator.of(context).pop();
-            },
-          ),
-        ],
-      );
-    },
-  );
-}
+          actions: [
+            TextButton(
+              child: const Text("Close"),
+              onPressed: () {
+                Navigator.of(context).pop();
+              },
+            ),
+          ],
+        );
+      },
+    );
+  }
 
   void _showLogoutDialog(BuildContext context) {
     showDialog(
