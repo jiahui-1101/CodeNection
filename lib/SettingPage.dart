@@ -4,8 +4,9 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:cloud_firestore/cloud_firestore.dart'; // Add this import
 
-class SettingsPage extends StatefulWidget { //latest,logout ok
+class SettingsPage extends StatefulWidget {
   const SettingsPage({super.key});
 
   @override
@@ -17,10 +18,14 @@ class _SettingsPageState extends State<SettingsPage> {
   String _username = 'User';
   String _email = 'user@example.com';
   String? _profileImageUrl;
+  String _realEmergencyPassword = '0000'; // Default real emergency password
+  String _duressEmergencyPassword = '1234'; // Default duress emergency password
 
   final FirebaseAuth _auth = FirebaseAuth.instance;
   final FirebaseStorage _storage = FirebaseStorage.instance;
   final ImagePicker _imagePicker = ImagePicker();
+  final FirebaseFirestore _firestore =
+      FirebaseFirestore.instance; // Firestore instance
   User? _currentUser;
 
   @override
@@ -28,6 +33,7 @@ class _SettingsPageState extends State<SettingsPage> {
     super.initState();
     _currentUser = _auth.currentUser;
     _loadSettings();
+    _loadEmergencyPasswords(); // Load emergency passwords
   }
 
   // Load saved settings from shared preferences
@@ -82,6 +88,51 @@ class _SettingsPageState extends State<SettingsPage> {
           backgroundColor: Colors.red,
         ),
       );
+    }
+  }
+
+  // Load emergency passwords from Firestore
+  Future<void> _loadEmergencyPasswords() async {
+    if (_currentUser == null) return;
+
+    try {
+      final doc = await _firestore
+          .collection('users')
+          .doc(_currentUser!.uid)
+          .get();
+      if (doc.exists) {
+        setState(() {
+          _realEmergencyPassword =
+              doc.data()?['realEmergencyPassword'] ?? '0000';
+          _duressEmergencyPassword =
+              doc.data()?['duressEmergencyPassword'] ?? '1234';
+        });
+      }
+    } catch (e) {
+      print('Error loading emergency passwords: $e');
+    }
+  }
+
+  // Save emergency passwords to Firestore
+  Future<void> _saveEmergencyPasswords(
+    String realPassword,
+    String duressPassword,
+  ) async {
+    if (_currentUser == null) return;
+
+    try {
+      await _firestore.collection('users').doc(_currentUser!.uid).set({
+        'realEmergencyPassword': realPassword,
+        'duressEmergencyPassword': duressPassword,
+      }, SetOptions(merge: true));
+
+      setState(() {
+        _realEmergencyPassword = realPassword;
+        _duressEmergencyPassword = duressPassword;
+      });
+    } catch (e) {
+      print('Error saving emergency passwords: $e');
+      rethrow;
     }
   }
 
@@ -173,7 +224,7 @@ class _SettingsPageState extends State<SettingsPage> {
   }
 
   // Sign out from Firebase
-    Future<void> _logout(BuildContext navContext) async {
+  Future<void> _logout(BuildContext navContext) async {
     showDialog(
       context: navContext,
       barrierDismissible: false,
@@ -184,19 +235,18 @@ class _SettingsPageState extends State<SettingsPage> {
       await _auth.signOut();
       await _clearAllSettings();
       if (navContext.mounted) {
-         Navigator.of(navContext).popUntil((route) => route.isFirst);
-        
+        Navigator.of(navContext).popUntil((route) => route.isFirst);
       }
-
     } catch (e) {
       if (navContext.mounted) {
-         Navigator.of(navContext, rootNavigator: true).pop();
-         ScaffoldMessenger.of(navContext).showSnackBar(
-            SnackBar(content: Text("Logout failed: $e"))
-         );
+        Navigator.of(navContext, rootNavigator: true).pop();
+        ScaffoldMessenger.of(
+          navContext,
+        ).showSnackBar(SnackBar(content: Text("Logout failed: $e")));
       }
     }
   }
+
   // Pick image from gallery or camera
   Future<void> _pickImage(ImageSource source) async {
     try {
@@ -460,6 +510,16 @@ class _SettingsPageState extends State<SettingsPage> {
                   },
                 ),
                 ListTile(
+                  leading: const Icon(
+                    Icons.emergency_outlined,
+                  ), // New icon for emergency password
+                  title: Text('Emergency Password', style: titleStyle),
+                  trailing: const Icon(Icons.arrow_forward_ios, size: 16),
+                  onTap: () {
+                    _showUpdateEmergencyPasswordDialog();
+                  },
+                ),
+                ListTile(
                   leading: const Icon(Icons.email_outlined),
                   title: Text('Change Email', style: titleStyle),
                   trailing: const Icon(Icons.arrow_forward_ios, size: 16),
@@ -537,6 +597,109 @@ class _SettingsPageState extends State<SettingsPage> {
           const SizedBox(height: 24),
         ],
       ),
+    );
+  }
+
+  void _showUpdateEmergencyPasswordDialog() {
+    TextEditingController realController = TextEditingController(
+      text: _realEmergencyPassword,
+    );
+    TextEditingController duressController = TextEditingController(
+      text: _duressEmergencyPassword,
+    );
+
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text('Update Emergency Password'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Text('Set your emergency passwords (4 digits each):'),
+              const SizedBox(height: 16),
+              TextField(
+                controller: realController,
+                decoration: const InputDecoration(
+                  labelText: 'Real Emergency Password',
+                  border: OutlineInputBorder(),
+                ),
+                keyboardType: TextInputType.number,
+                obscureText: true,
+                maxLength: 4,
+              ),
+              const SizedBox(height: 16),
+              TextField(
+                controller: duressController,
+                decoration: const InputDecoration(
+                  labelText: 'Duress Emergency Password',
+                  border: OutlineInputBorder(),
+                ),
+                keyboardType: TextInputType.number,
+                obscureText: true,
+                maxLength: 4,
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text('Cancel'),
+            ),
+            ElevatedButton(
+              onPressed: () async {
+                if (realController.text.length != 4 ||
+                    duressController.text.length != 4) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('Both passwords must be 4 digits'),
+                      backgroundColor: Colors.red,
+                    ),
+                  );
+                  return;
+                }
+
+                if (realController.text == duressController.text) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text(
+                        'Real and duress passwords must be different',
+                      ),
+                      backgroundColor: Colors.red,
+                    ),
+                  );
+                  return;
+                }
+
+                try {
+                  await _saveEmergencyPasswords(
+                    realController.text,
+                    duressController.text,
+                  );
+                  Navigator.of(context).pop();
+
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('Emergency passwords updated successfully'),
+                      duration: Duration(seconds: 2),
+                    ),
+                  );
+                } catch (e) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text(
+                        'Failed to update emergency passwords: ${e.toString()}',
+                      ),
+                      backgroundColor: Colors.red,
+                    ),
+                  );
+                }
+              },
+              child: const Text('Save'),
+            ),
+          ],
+        );
+      },
     );
   }
 
@@ -821,7 +984,7 @@ class _SettingsPageState extends State<SettingsPage> {
             ),
             TextButton(
               onPressed: () {
-                 final buildContext = context;
+                final buildContext = context;
                 Navigator.of(dialogContext).pop();
                 _logout(buildContext);
               },

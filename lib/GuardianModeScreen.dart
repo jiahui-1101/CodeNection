@@ -41,8 +41,9 @@ class _GuardianModeScreenState extends State<GuardianModeScreen> {
   RouteTracker? _routeTracker; // Make nullable
   StreamSubscription? _alertStatusSubscription;
   final pinController = TextEditingController();
-  final String safePin = "0000";
-  final String duressPin = "1234";
+  String _realEmergencyPassword = "0000";
+  String _duressEmergencyPassword = "1234";
+  StreamSubscription? _emergencyPasswordSubscription;
   bool _isDuressExit = false;
   StreamSubscription? _guardLocationSubscription;
   LatLng? _userPosition;
@@ -63,6 +64,7 @@ class _GuardianModeScreenState extends State<GuardianModeScreen> {
     final currentUser = FirebaseAuth.instance.currentUser;
     if (currentUser == null) return;
 
+    _fetchEmergencyPasswords();
     // 开始共享用户的位置
     _locationService = sos_location.LocationService(
       widget.alertId,
@@ -80,64 +82,84 @@ class _GuardianModeScreenState extends State<GuardianModeScreen> {
         .doc(widget.alertId)
         .snapshots()
         .listen((doc) async {
-      if (!mounted || !doc.exists || doc.data() == null) return;
+          if (!mounted || !doc.exists || doc.data() == null) return;
 
-      final data = doc.data()!;
-      final status = data['status'];
+          final data = doc.data()!;
+          final status = data['status'];
 
-      // ✅ 如果结束或取消，停止所有服务
-      if (status == 'completed' || status == 'cancelled') {
-        _alertStatusSubscription?.cancel();
-        _alertStatusSubscription = null;
+          // ✅ 如果结束或取消，停止所有服务
+          if (status == 'completed' || status == 'cancelled') {
+            _alertStatusSubscription?.cancel();
+            _alertStatusSubscription = null;
 
-        await _audioRecorder.stopAndUpload();
-        await _locationService.stopSharingLocation();
-        _routeTracker?.stopTracking();
+            await _audioRecorder.stopAndUpload();
+            await _locationService.stopSharingLocation();
+            _routeTracker?.stopTracking();
 
-        if (!mounted) return;
-        final navContext = context;
-        ScaffoldMessenger.of(navContext).showSnackBar(
-          SnackBar(
-            content: Text(
-              status == 'completed'
-                  ? "Alert has been resolved by the guard."
-                  : "Alert has been cancelled.",
-            ),
-            backgroundColor: Colors.green,
-          ),
-        );
+            if (!mounted) return;
+            final navContext = context;
+            ScaffoldMessenger.of(navContext).showSnackBar(
+              SnackBar(
+                content: Text(
+                  status == 'completed'
+                      ? "Alert has been resolved by the guard."
+                      : "Alert has been cancelled.",
+                ),
+                backgroundColor: Colors.green,
+              ),
+            );
 
-        await Future.delayed(const Duration(milliseconds: 1500));
+            await Future.delayed(const Duration(milliseconds: 1500));
 
-        if (mounted) {
-          Navigator.of(navContext).pop();
-        }
-        return;
-      }
-
-      // ✅ 实时更新 user 位置
-      if (data['latitude'] != null && data['longitude'] != null) {
-        final newUserPosition = LatLng(data['latitude'], data['longitude']);
-        if (newUserPosition != _userPosition) {
-          setState(() {
-            _userPosition = newUserPosition;
-            _updateMarkers();
-
-            // 当用户位置更新时，重新初始化路线跟踪
-            if (_guardPosition != null && _userPosition != null) {
-              _initializeRouteTracker();
+            if (mounted) {
+              Navigator.of(navContext).pop();
             }
-          });
-        }
-      }
+            return;
+          }
 
-      // ✅ 有守卫 ID → 开始监听守卫位置
-      final guardId = data['guardId'] as String?;
-      if (guardId != null && _guardIdOnAlert != guardId) {
-        _guardIdOnAlert = guardId;
-        _listenToGuardLocation();
-      }
-    });
+          // ✅ 实时更新 user 位置
+          if (data['latitude'] != null && data['longitude'] != null) {
+            final newUserPosition = LatLng(data['latitude'], data['longitude']);
+            if (newUserPosition != _userPosition) {
+              setState(() {
+                _userPosition = newUserPosition;
+                _updateMarkers();
+
+                // 当用户位置更新时，重新初始化路线跟踪
+                if (_guardPosition != null && _userPosition != null) {
+                  _initializeRouteTracker();
+                }
+              });
+            }
+          }
+
+          // ✅ 有守卫 ID → 开始监听守卫位置
+          final guardId = data['guardId'] as String?;
+          if (guardId != null && _guardIdOnAlert != guardId) {
+            _guardIdOnAlert = guardId;
+            _listenToGuardLocation();
+          }
+        });
+  }
+
+  void _fetchEmergencyPasswords() {
+    final currentUser = FirebaseAuth.instance.currentUser;
+    if (currentUser == null) return;
+
+    _emergencyPasswordSubscription = FirebaseFirestore.instance
+        .collection('users')
+        .doc(currentUser.uid)
+        .snapshots()
+        .listen((doc) {
+          if (doc.exists && mounted) {
+            setState(() {
+              _realEmergencyPassword =
+                  doc.data()?['realEmergencyPassword'] ?? "0000";
+              _duressEmergencyPassword =
+                  doc.data()?['duressEmergencyPassword'] ?? "1234";
+            });
+          }
+        });
   }
 
   void _initializeRouteTracker() async {
@@ -245,33 +267,34 @@ class _GuardianModeScreenState extends State<GuardianModeScreen> {
         .doc(_guardIdOnAlert)
         .snapshots()
         .listen((doc) {
-      if (mounted && doc.exists && doc.data() != null) {
-        final data = doc.data()!;
-        if (data['latitude'] != null && data['longitude'] != null) {
-          final newGuardPosition = LatLng(
-            data['latitude'],
-            data['longitude'],
-          );
-          if (newGuardPosition != _guardPosition) {
-            setState(() {
-              _guardPosition = newGuardPosition;
-              _updateMarkers();
+          if (mounted && doc.exists && doc.data() != null) {
+            final data = doc.data()!;
+            if (data['latitude'] != null && data['longitude'] != null) {
+              final newGuardPosition = LatLng(
+                data['latitude'],
+                data['longitude'],
+              );
+              if (newGuardPosition != _guardPosition) {
+                setState(() {
+                  _guardPosition = newGuardPosition;
+                  _updateMarkers();
 
-              // 当守卫位置更新时，重新初始化路线跟踪
-              if (_guardPosition != null && _userPosition != null) {
-                _initializeRouteTracker();
+                  // 当守卫位置更新时，重新初始化路线跟踪
+                  if (_guardPosition != null && _userPosition != null) {
+                    _initializeRouteTracker();
+                  }
+                });
               }
-            });
+            }
           }
-        }
-      }
-    });
+        });
   }
 
   Future<void> _updateCameraBounds() async {
     if (!mounted ||
         _userPosition == null ||
-        !_mapControllerCompleter.isCompleted) return;
+        !_mapControllerCompleter.isCompleted)
+      return;
 
     final controller = await _mapControllerCompleter.future;
 
@@ -308,8 +331,8 @@ class _GuardianModeScreenState extends State<GuardianModeScreen> {
     final result = await showDeactivationDialog(
       context,
       pinController,
-      safePin,
-      duressPin,
+      _realEmergencyPassword, // Use fetched real password
+      _duressEmergencyPassword, // Use fetched duress password
       widget.audioPlayer,
       alertId: widget.alertId,
       onDeactivate: () async {
@@ -339,6 +362,7 @@ class _GuardianModeScreenState extends State<GuardianModeScreen> {
 
   @override
   void dispose() {
+    _emergencyPasswordSubscription?.cancel();
     _alertStatusSubscription?.cancel();
     _guardLocationSubscription?.cancel();
     pinController.dispose();
