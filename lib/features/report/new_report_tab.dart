@@ -4,7 +4,9 @@ import 'package:file_picker/file_picker.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:path/path.dart' as path;
-import 'package:firebase_storage/firebase_storage.dart'; 
+import 'package:firebase_storage/firebase_storage.dart';
+import 'package:image_picker/image_picker.dart';
+import 'package:flutter/services.dart';
 import '../../../models/report_model.dart';
 
 class NewReportTab extends StatefulWidget {
@@ -25,7 +27,7 @@ class _NewReportTabState extends State<NewReportTab> {
   bool _isPickingAttachment = false;
   String? _selectedCategory;
   String? _selectedDepartment;
-  bool _isUploading = false; 
+  bool _isUploading = false;
 
   final Map<String, String> _categoryToDepartmentMap = {
     'Damage': 'Maintenance Department',
@@ -53,17 +55,222 @@ class _NewReportTabState extends State<NewReportTab> {
     super.dispose();
   }
 
-  Future<void> _pickAttachment() async {
+  void _pickAttachment() {
     if (_isPickingAttachment) return;
-    setState(() => _isPickingAttachment = true);
 
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text('Select Attachment'),
+          content: SingleChildScrollView(
+            child: ListBody(
+              children: <Widget>[
+                GestureDetector(
+                  child: const ListTile(
+                    leading: Icon(Icons.camera_alt),
+                    title: Text('Take a photo'),
+                  ),
+                  onTap: () {
+                    Navigator.pop(context);
+                    _pickFromCamera();
+                  },
+                ),
+                GestureDetector(
+                  child: const ListTile(
+                    leading: Icon(Icons.photo_library),
+                    title: Text('Choose from gallery'),
+                  ),
+                  onTap: () {
+                    Navigator.pop(context);
+                    _pickFromGallery();
+                  },
+                ),
+                GestureDetector(
+                  child: const ListTile(
+                    leading: Icon(Icons.attach_file),
+                    title: Text('Choose any file'),
+                  ),
+                  onTap: () {
+                    Navigator.pop(context);
+                    _pickAnyFile();
+                  },
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Future<void> _pickFromCamera() async {
+    setState(() => _isPickingAttachment = true);
     try {
-      final result = await FilePicker.platform.pickFiles(type: FileType.any);
-      if (mounted && result != null && result.files.single.path != null) {
+      final XFile? result = await ImagePicker().pickImage(
+        source: ImageSource.camera,
+        maxWidth: 1920,
+        maxHeight: 1080,
+        imageQuality: 85,
+      );
+
+      if (mounted && result != null) {
+        final file = File(result.path);
+        final fileSize = await file.length();
+
+        // Check file size (e.g., 10MB limit)
+        if (fileSize > 10 * 1024 * 1024) {
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text(
+                  'Image is too large. Please select a file under 10MB.',
+                ),
+                backgroundColor: Colors.red,
+              ),
+            );
+          }
+          return;
+        }
+
         setState(() {
-          _selectedAttachmentFile = File(result.files.single.path!);
+          _selectedAttachmentFile = file;
+          _selectedAttachmentFileName = result.name;
+        });
+      }
+    } on PlatformException catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to pick image: ${e.message}'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to pick image: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isPickingAttachment = false);
+      }
+    }
+  }
+
+  Future<void> _pickFromGallery() async {
+    setState(() => _isPickingAttachment = true);
+    try {
+      final XFile? result = await ImagePicker().pickImage(
+        source: ImageSource.gallery,
+        maxWidth: 1920,
+        maxHeight: 1080,
+        imageQuality: 85,
+      );
+
+      if (mounted && result != null) {
+        final file = File(result.path);
+        final fileSize = await file.length();
+
+        // Check file size (e.g., 10MB limit)
+        if (fileSize > 10 * 1024 * 1024) {
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text(
+                  'Image is too large. Please select a file under 10MB.',
+                ),
+                backgroundColor: Colors.red,
+              ),
+            );
+          }
+          return;
+        }
+
+        setState(() {
+          _selectedAttachmentFile = file;
+          _selectedAttachmentFileName = result.name;
+        });
+      }
+    } on PlatformException catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to pick image: ${e.message}'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to pick image: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isPickingAttachment = false);
+      }
+    }
+  }
+
+  Future<void> _pickAnyFile() async {
+    setState(() => _isPickingAttachment = true);
+    try {
+      final FilePickerResult? result = await FilePicker.platform.pickFiles(
+        type: FileType.any,
+        allowCompression: true,
+      );
+
+      if (mounted && result != null && result.files.single.path != null) {
+        final file = File(result.files.single.path!);
+        final fileSize = await file.length();
+
+        // Check file size (e.g., 25MB limit for general files)
+        if (fileSize > 25 * 1024 * 1024) {
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text(
+                  'File is too large. Please select a file under 25MB.',
+                ),
+                backgroundColor: Colors.red,
+              ),
+            );
+          }
+          return;
+        }
+
+        setState(() {
+          _selectedAttachmentFile = file;
           _selectedAttachmentFileName = result.files.single.name;
         });
+      }
+    } on PlatformException catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to pick file: ${e.message}'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to pick file: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
       }
     } finally {
       if (mounted) {
@@ -78,10 +285,12 @@ class _NewReportTabState extends State<NewReportTab> {
     }
 
     if (_selectedCategory == null) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-        content: Text('Please select a complaint category.'),
-        backgroundColor: Colors.red,
-      ));
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Please select a complaint category.'),
+          backgroundColor: Colors.red,
+        ),
+      );
       return;
     }
 
@@ -94,18 +303,19 @@ class _NewReportTabState extends State<NewReportTab> {
       String? attachmentFileName = _selectedAttachmentFileName;
 
       if (_selectedAttachmentFile != null && attachmentFileName != null) {
-        final String filePath = 'report_attachments/$_currentUserId/${DateTime.now().millisecondsSinceEpoch}_$attachmentFileName';
+        final String filePath =
+            'report_attachments/$_currentUserId/${DateTime.now().millisecondsSinceEpoch}_$attachmentFileName';
         final ref = FirebaseStorage.instance.ref().child(filePath);
         final uploadTask = ref.putFile(_selectedAttachmentFile!);
 
         final snapshot = await uploadTask.whenComplete(() {});
-        
+
         attachmentUrl = await snapshot.ref.getDownloadURL();
       }
 
       _selectedDepartment = _categoryToDepartmentMap[_selectedCategory!];
       final now = DateTime.now();
-      
+
       final newReport = Report(
         id: '',
         userId: _currentUserId,
@@ -113,21 +323,27 @@ class _NewReportTabState extends State<NewReportTab> {
         category: _selectedCategory!,
         department: _selectedDepartment!,
         description: _descriptionController.text.trim(),
-        contact: _contactController.text.trim().isEmpty ? null : _contactController.text.trim(),
-        attachmentUrl: attachmentUrl, 
-        attachmentFileName: attachmentFileName, 
+        contact: _contactController.text.trim().isEmpty
+            ? null
+            : _contactController.text.trim(),
+        attachmentUrl: attachmentUrl,
+        attachmentFileName: attachmentFileName,
         timestamp: now,
         lastUpdateTimestamp: now,
         status: ReportStatus.submitted,
       );
 
-      await FirebaseFirestore.instance.collection('reports').add(newReport.toFirestore());
+      await FirebaseFirestore.instance
+          .collection('reports')
+          .add(newReport.toFirestore());
 
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-        content: Text("Thank you! Your report has been submitted."),
-        backgroundColor: Colors.green,
-      ));
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text("Thank you! Your report has been submitted."),
+          backgroundColor: Colors.green,
+        ),
+      );
 
       _formKey.currentState?.reset();
       _titleController.clear();
@@ -139,17 +355,18 @@ class _NewReportTabState extends State<NewReportTab> {
         _selectedCategory = null;
         _selectedDepartment = null;
       });
-
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: Text("Failed to submit report: $e"),
-        backgroundColor: Colors.red,
-      ));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text("Failed to submit report: $e"),
+          backgroundColor: Colors.red,
+        ),
+      );
     } finally {
       if (mounted) {
         setState(() {
-          _isUploading = false; 
+          _isUploading = false;
         });
       }
     }
@@ -157,7 +374,13 @@ class _NewReportTabState extends State<NewReportTab> {
 
   Widget _buildAttachmentPreview(File file, String fileName) {
     final String extension = path.extension(fileName).toLowerCase();
-    final bool isImage = ['.jpg', '.jpeg', '.png', '.gif', '.webp'].contains(extension);
+    final bool isImage = [
+      '.jpg',
+      '.jpeg',
+      '.png',
+      '.gif',
+      '.webp',
+    ].contains(extension);
 
     if (isImage) {
       return Image.file(file, fit: BoxFit.cover);
@@ -186,7 +409,11 @@ class _NewReportTabState extends State<NewReportTab> {
       padding: const EdgeInsets.only(bottom: 8.0),
       child: Text(
         title,
-        style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.black54),
+        style: const TextStyle(
+          fontSize: 18,
+          fontWeight: FontWeight.bold,
+          color: Colors.black54,
+        ),
       ),
     );
   }
@@ -205,15 +432,27 @@ class _NewReportTabState extends State<NewReportTab> {
             const SizedBox(height: 16),
             TextFormField(
               controller: _titleController,
-              decoration: const InputDecoration(labelText: "Title", prefixIcon: Icon(Icons.title), border: OutlineInputBorder()),
-              validator: (v) => v == null || v.trim().isEmpty ? 'Title cannot be empty.' : null,
+              decoration: const InputDecoration(
+                labelText: "Title",
+                prefixIcon: Icon(Icons.title),
+                border: OutlineInputBorder(),
+              ),
+              validator: (v) => v == null || v.trim().isEmpty
+                  ? 'Title cannot be empty.'
+                  : null,
             ),
             const SizedBox(height: 16),
             DropdownButtonFormField<String>(
               initialValue: _selectedCategory,
-              decoration: const InputDecoration(labelText: 'Complaint Category', prefixIcon: Icon(Icons.category_outlined), border: OutlineInputBorder()),
+              decoration: const InputDecoration(
+                labelText: 'Complaint Category',
+                prefixIcon: Icon(Icons.category_outlined),
+                border: OutlineInputBorder(),
+              ),
               hint: const Text('Choose category'),
-              items: _categories.map((cat) => DropdownMenuItem(value: cat, child: Text(cat))).toList(),
+              items: _categories
+                  .map((cat) => DropdownMenuItem(value: cat, child: Text(cat)))
+                  .toList(),
               onChanged: (val) => setState(() {
                 _selectedCategory = val;
                 _selectedDepartment = _categoryToDepartmentMap[val];
@@ -225,21 +464,38 @@ class _NewReportTabState extends State<NewReportTab> {
               key: ValueKey(_selectedDepartment),
               readOnly: true,
               initialValue: _selectedDepartment ?? 'Choose category first',
-              decoration: const InputDecoration(labelText: 'Assigned Department', prefixIcon: Icon(Icons.groups_outlined), border: OutlineInputBorder(), filled: true, fillColor: Color.fromARGB(255, 235, 235, 235)),
+              decoration: const InputDecoration(
+                labelText: 'Assigned Department',
+                prefixIcon: Icon(Icons.groups_outlined),
+                border: OutlineInputBorder(),
+                filled: true,
+                fillColor: Color.fromARGB(255, 235, 235, 235),
+              ),
             ),
             const SizedBox(height: 16),
             TextFormField(
               controller: _descriptionController,
               maxLines: 5,
-              decoration: const InputDecoration(labelText: "Description", hintText: "Please describe the issue.", border: OutlineInputBorder(), alignLabelWithHint: true),
-              validator: (v) => v == null || v.trim().isEmpty ? 'Description cannot be empty.' : null,
+              decoration: const InputDecoration(
+                labelText: "Description",
+                hintText: "Please describe the issue.",
+                border: OutlineInputBorder(),
+                alignLabelWithHint: true,
+              ),
+              validator: (v) => v == null || v.trim().isEmpty
+                  ? 'Description cannot be empty.'
+                  : null,
             ),
             const SizedBox(height: 24),
             _buildSectionTitle("Contact & Attachments"),
             const SizedBox(height: 16),
             TextFormField(
               controller: _contactController,
-              decoration: const InputDecoration(labelText: "Email or Phone No. (Optional)", prefixIcon: Icon(Icons.contact_mail_outlined), border: OutlineInputBorder()),
+              decoration: const InputDecoration(
+                labelText: "Email or Phone No. (Optional)",
+                prefixIcon: Icon(Icons.contact_mail_outlined),
+                border: OutlineInputBorder(),
+              ),
             ),
             const SizedBox(height: 16),
             GestureDetector(
@@ -247,13 +503,21 @@ class _NewReportTabState extends State<NewReportTab> {
               child: Container(
                 height: 150,
                 width: double.infinity,
-                decoration: BoxDecoration(border: Border.all(color: Colors.grey), borderRadius: BorderRadius.circular(8), color: Colors.grey.shade100),
+                decoration: BoxDecoration(
+                  border: Border.all(color: Colors.grey),
+                  borderRadius: BorderRadius.circular(8),
+                  color: Colors.grey.shade100,
+                ),
                 child: _selectedAttachmentFile == null
                     ? const Center(
                         child: Column(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
-                            Icon(Icons.attachment, size: 40, color: Colors.grey),
+                            Icon(
+                              Icons.attachment,
+                              size: 40,
+                              color: Colors.grey,
+                            ),
                             SizedBox(height: 8),
                             Text("Tap to select an attachment"),
                           ],
@@ -261,26 +525,34 @@ class _NewReportTabState extends State<NewReportTab> {
                       )
                     : ClipRRect(
                         borderRadius: BorderRadius.circular(8.0),
-                        child: _buildAttachmentPreview(_selectedAttachmentFile!, _selectedAttachmentFileName!),
+                        child: _buildAttachmentPreview(
+                          _selectedAttachmentFile!,
+                          _selectedAttachmentFileName!,
+                        ),
                       ),
               ),
             ),
             const SizedBox(height: 24),
             ElevatedButton.icon(
-              onPressed: _isUploading ? null : _submitReport, 
-              icon: _isUploading ? Container() : const Icon(Icons.send), 
+              onPressed: _isUploading ? null : _submitReport,
+              icon: _isUploading ? Container() : const Icon(Icons.send),
               label: _isUploading
                   ? const SizedBox(
                       height: 24,
                       width: 24,
-                      child: CircularProgressIndicator(strokeWidth: 3, color: Colors.white),
+                      child: CircularProgressIndicator(
+                        strokeWidth: 3,
+                        color: Colors.white,
+                      ),
                     )
                   : const Text("Submit Report", style: TextStyle(fontSize: 16)),
               style: ElevatedButton.styleFrom(
                 backgroundColor: const Color(0xFF8EB9D4),
                 foregroundColor: Colors.white,
                 padding: const EdgeInsets.symmetric(vertical: 16),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
               ),
             ),
           ],
