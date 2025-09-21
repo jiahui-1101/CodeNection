@@ -6,7 +6,7 @@ const { defineSecret } = require("firebase-functions/params");
 const twilio = require("twilio");
 const { onRequest } = require("firebase-functions/v2/https");
 
-// Final deployment on xixi
+// Final deployment on 22/9  0055
 initializeApp();
 setGlobalOptions({ region: "asia-southeast1" });
 
@@ -15,11 +15,6 @@ const twilioAccountSid = defineSecret("TWILIO_ACCOUNT_SID");
 const twilioAuthToken = defineSecret("TWILIO_AUTH_TOKEN");
 const twilioPhoneNumber = defineSecret("TWILIO_PHONE_NUMBER");
 
-/**
- * ==========================
- * Firestore triggers (unchanged)
- * ==========================
- */
 exports.notifyGuardOnNewAlert = onDocumentCreated(
   {
     document: "alerts/{alertId}",
@@ -31,7 +26,6 @@ exports.notifyGuardOnNewAlert = onDocumentCreated(
 
     const alertData = snap.data();
     const alertId = event.params.alertId;
-
     const topic = "new_alerts";
     const payloadForGuards = {
       topic,
@@ -63,10 +57,23 @@ exports.notifyGuardOnNewAlert = onDocumentCreated(
         const smsPromises = alertData.emergencyContacts
           .map((contact) => {
             if (contact && contact.phone && contact.phone.startsWith("+")) {
-              const messageBody = `URGENT: ${alertData.userName || "Your contact"} has triggered an SOS alert. Please try to contact them immediately. This is an automated message.`;
+
+                const userName = alertData.userName || "Your contact";
+                const latitude = alertData.latitude || 0;
+                const longitude = alertData.longitude || 0;
+                const messageBody = `UTM SOS: ${userName} needs help. Last known coords: ${latitude}, ${longitude}. Pls search on map & contact them.`;
+              //message with link cannot be sent,mcm spam, so removed
+             /*let messageBody = `UTMBright Safety Alert: ${alertData.userName || "Your contact"} has triggered an SOS and may need help. Please contact them.`;
+              if (alertData.latitude && alertData.longitude) {
+                const mapsLink = `https://www.google.com/maps?q=${alertData.latitude},${alertData.longitude}`;
+               /messageBody += `\nLast known location: ${mapsLink}`;
+                messageBody += `\n\nLocation coordinates: ${alertData.latitude}, ${alertData.longitude}`;
+                messageBody += `\n(To see location, copy coordinates and search on Google Maps)`;
+              } */
+              
               console.log(`Preparing SMS to ${contact.name} at ${contact.phone}`);
               return client.messages.create({
-                body: messageBody,
+                body: messageBody, 
                 from: twilioPhoneNumber.value().trim(),
                 to: contact.phone,
               });
@@ -121,11 +128,6 @@ exports.notifyUserOnGuardAccept = onDocumentUpdated("alerts/{alertId}", async (e
   }
 });
 
-/**
- * ==========================
- * DEBUG Endpoint: Test Twilio Secrets
- * ==========================
- */
 exports.testTwilioSecrets = onRequest(
   { secrets: [twilioAccountSid, twilioAuthToken, twilioPhoneNumber] },
   (req, res) => {
@@ -136,3 +138,4 @@ exports.testTwilioSecrets = onRequest(
     });
   }
 );
+
