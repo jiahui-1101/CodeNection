@@ -7,7 +7,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart'; 
 import 'package:geolocator/geolocator.dart'; 
 import 'package:firebase_messaging/firebase_messaging.dart';
-class SmartSosButton extends StatefulWidget {
+class SmartSosButton extends StatefulWidget {  //latest,add sms feature
   final Function? onEmergencyDetected;
 
   const SmartSosButton({super.key, this.onEmergencyDetected});

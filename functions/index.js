@@ -5,13 +5,13 @@ const {setGlobalOptions} = require("firebase-functions/v2");
 const {defineSecret} = require("firebase-functions/params");
 const twilio = require("twilio");
 
+// Final deployment on 21 Sep 2025
 initializeApp();
 setGlobalOptions({region: "asia-southeast1"});
 
 const twilioAccountSid = defineSecret("TWILIO_ACCOUNT_SID");
 const twilioAuthToken = defineSecret("TWILIO_AUTH_TOKEN");
 const twilioPhoneNumber = defineSecret("TWILIO_PHONE_NUMBER");
-
 
 exports.notifyGuardOnNewAlert = onDocumentCreated(
     {
@@ -27,7 +27,6 @@ exports.notifyGuardOnNewAlert = onDocumentCreated(
         const alertData = snap.data();
         const alertId = event.params.alertId;
 
-
         const topic = "new_alerts";
         const payloadForGuards = {
             topic: topic,
@@ -37,15 +36,17 @@ exports.notifyGuardOnNewAlert = onDocumentCreated(
             },
             data: {
                 alertId: alertId,
-                guardId: alertData.guardId || "",
+                guardId: "", // For initial broadcast, this is empty
                 click_action: "FLUTTER_NOTIFICATION_CLICK",
+                // ✅ 1. 在这里给“通知Guard”的这个动作，贴上标签！
+                'notificationType': 'NEW_ALERT',
             },
-            android: { 
+            android: {
                 notification: {
                     sound: "default",
                 }
             },
-            apns: { 
+            apns: {
                 payload: {
                     aps: {
                         sound: "default",
@@ -55,11 +56,10 @@ exports.notifyGuardOnNewAlert = onDocumentCreated(
         };
 
         try {
-
             const response = await getMessaging().send(payloadForGuards);
-            console.log("Successfully sent FCM to guards for alert:", alertId, "Response:", response);
+            console.log("Successfully sent NEW_ALERT notification for alert:", alertId, "Response:", response);
         } catch (error) {
-            console.error("Error sending FCM to guards for alert:", alertId, "Error:", error);
+            console.error("Error sending NEW_ALERT notification:", alertId, "Error:", error);
         }
 
         if (alertData.emergencyContacts && alertData.emergencyContacts.length > 0) {
@@ -99,7 +99,7 @@ exports.notifyUserOnGuardAccept = onDocumentUpdated("alerts/{alertId}", async (e
         }
         
         const payload = {
-            token: userToken, 
+            token: userToken,
             notification: {
                 title: "✅ Help is on the way!",
                 body: "A guard has accepted your alert and is en route.",
@@ -107,15 +107,16 @@ exports.notifyUserOnGuardAccept = onDocumentUpdated("alerts/{alertId}", async (e
             data: {
                 alertId: alertId,
                 click_action: "FLUTTER_NOTIFICATION_CLICK",
+                // ✅ 2. 在这里给“通知User”的这个动作，也贴上标签！
+                'notificationType': 'GUARD_ACCEPTED',
             },
         };
 
         try {
-     
             await getMessaging().send(payload);
-            console.log("Successfully sent 'Guard Accepted' notification to user for alert:", alertId);
+            console.log("Successfully sent GUARD_ACCEPTED notification to user for alert:", alertId);
         } catch (error) {
-            console.error("Error sending 'Guard Accepted' notification:", error);
+            console.error("Error sending GUARD_ACCEPTED notification:", error);
         }
     }
 });
