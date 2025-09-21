@@ -560,7 +560,7 @@ class _SettingsPageState extends State<SettingsPage> {
                   title: Text('Terms of Service', style: titleStyle),
                   trailing: const Icon(Icons.arrow_forward_ios, size: 16),
                   onTap: () {
-                    // Navigate to terms of service
+                    _showTermsOfServiceDialog(context);
                   },
                 ),
                 ListTile(
@@ -967,6 +967,50 @@ class _SettingsPageState extends State<SettingsPage> {
       },
     );
   }
+
+  void _showTermsOfServiceDialog(BuildContext context) {
+  showDialog(
+    context: context,
+    builder: (BuildContext context) {
+      return AlertDialog(
+        title: const Text("Terms of Service"),
+        content: SizedBox(
+          height: 400, // 限制高度，避免超出屏幕
+          child: SingleChildScrollView(
+            child: const Text(
+              "Welcome to UTM Bright!\n\n"
+              "By using this app, you agree to the following Terms of Service:\n\n"
+              "1. Usage\n"
+              "- You agree to use this app responsibly and for lawful purposes only.\n\n"
+              "2. Account\n"
+              "- You are responsible for maintaining the confidentiality of your account.\n"
+              "- Any activity under your account is your responsibility.\n\n"
+              "3. Data & Privacy\n"
+              "- Your data will be stored securely and only used to provide app functionality.\n"
+              "- For details, please refer to our Privacy Policy.\n\n"
+              "4. Limitations\n"
+              "- We are not responsible for damages resulting from misuse of this app.\n"
+              "- The service may change, be suspended, or stopped at any time.\n\n"
+              "5. Acceptance\n"
+              "- By continuing to use this app, you acknowledge that you have read and agree to these Terms.\n\n"
+              "---\n"
+              "If you have any questions, contact us at utmbright@gmail.com",
+              style: TextStyle(fontSize: 14, height: 1.5),
+            ),
+          ),
+        ),
+        actions: [
+          TextButton(
+            child: const Text("Close"),
+            onPressed: () {
+              Navigator.of(context).pop();
+            },
+          ),
+        ],
+      );
+    },
+  );
+}
 
   void _showLogoutDialog(BuildContext context) {
     showDialog(
