@@ -5,6 +5,8 @@ import 'package:flutter/material.dart';
 // ✅ 1. 我们现在也需要 GuardianModeScreen 的 import
 import 'package:hello_flutter/GuardianModeScreen.dart';
 import '../guard_view/guard_tracking_page.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+
 
 final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
 
@@ -34,6 +36,12 @@ class FirebaseApi {
         final currentUser = FirebaseAuth.instance.currentUser;
         if (currentUser != null) {
           print("👮 Guard is viewing a NEW_ALERT. Navigating to GuardTrackingPage.");
+              FirebaseFirestore.instance.collection('alerts').doc(alertId).update({
+          'status': 'accepted',
+          'guardId': currentUser.uid,
+          'acceptedAt': FieldValue.serverTimestamp(),
+          });
+
           navigatorKey.currentState?.push(
             MaterialPageRoute(
               builder: (context) => TrackingPage(
