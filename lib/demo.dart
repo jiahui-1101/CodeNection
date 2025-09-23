@@ -6,10 +6,10 @@ import 'MainScreen.dart';
 import 'CallManagementPage.dart';
 import 'features/sos_alert/service/firebase_api.dart';
 
-Future<void> main() async {   
+Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  await Firebase.initializeApp();   
-   await FirebaseApi().initNotifications(); 
+  await Firebase.initializeApp();
+  await FirebaseApi().initNotifications();
   runApp(const MyApp());
 }
 class MyApp extends StatelessWidget {
@@ -19,14 +19,14 @@ class MyApp extends StatelessWidget {
 
   Widget build(BuildContext context) {
     return MaterialApp(
-      navigatorKey: navigatorKey, 
+      navigatorKey: navigatorKey,
       title: 'Firebase Auth Test',
       theme: ThemeData(
         colorScheme: ColorScheme.fromSeed(seedColor: Colors.blue),
         useMaterial3: true,
       ),
       debugShowCheckedModeBanner: false,
-      //home: const LoginPage(),   
+      //home: const LoginPage(),
       home: const AuthWrapper(),
     );
   }

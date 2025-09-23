@@ -10,6 +10,7 @@ class ReportManagementPage extends StatelessWidget { //staff view punya report m
     return Scaffold(
       appBar: AppBar(
         title: const Text("Report Management Dashboard"),
+        main
         backgroundColor: const Color(0xFF8EB9D4),
         foregroundColor: Colors.white,
         centerTitle: true,
