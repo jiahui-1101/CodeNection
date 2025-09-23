@@ -57,6 +57,7 @@ dependencies:
   flutter_compass: ^0.8.0
   firebase_ai: ^3.2.0
   firebase_messaging: ^16.0.1
+  flutter_launcher_icons: "^0.13.1"
 
 
 
@@ -90,3 +91,13 @@ flutter:
     - family: Gerdu
       fonts:
         - asset: assets/fonts/Gerdu.otf
+    - family: PermanentMarker
+      fonts:
+        - asset: assets/fonts/PermanentMarker-Regular.ttf
+    - family: Parisian Packaging
+      fonts:
+        - asset: assets/fonts/Parisian Packaging .ttf
+
+flutter_icons:
+  ios: true
+  image_path: "assets/icon/icon.png"

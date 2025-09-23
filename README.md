@@ -16,8 +16,7 @@
 ---
 ## Track & Problem Statement  :mag_right:
 **Track:** CodeNection 2025-Track 2: Campus Safety App.
-
-**Problem Statement:** Current safety infrastructure often lacks comprehensive coverage, real-time responsiveness, and accessibility features that address the diverse needs of the campus community, leaving gaps in protection and support.  
+**Problem Statement:** Current safety infrastructure often lacks comprehensive coverage, real-time responsiveness, and accessibility features that address the diverse needs of the campus community, leaving gaps in protection and support.*  
 
 ##  Introduction  :mega:
 **JustBrightForUTM** is a *Smart Campus Mobility & Safety Companion* designed to enhance student safety and mobility.  
@@ -34,26 +33,22 @@ The app delivers its value through **three main features**:
 ##  Core Features  :star2:
 
 #### 1. Intelligent Navigation & Community Mobility  
-- **Intelligent Navigation**
-
-    1. **Safe Route Algorithm** – Chooses routes based on streetlight coverage, security post proximity, and reported hotspots.  
-    
-- **Community Mobility**
-    1. **"Let's Walk!" Mode** – Anonymous, temporary walking groups for safe companionship.
-    2. **Virtual Safety Companion** – Plays pre-recorded supportive voice notes from family/friends.  
+  - **"Let's Walk!"** – Anonymous, temporary walking groups for safe companionship.  
+  - **Safe Route Algorithm** – Chooses routes based on streetlight coverage, security post proximity, and reported hotspots.  
+  - **Virtual Safety Companion** – Plays pre-recorded supportive voice notes from family/friends.  
 
 
 #### 2. The Ultimate SOS Button  :sos:
 - **Stage 1: Smart Context Alert**  
-    1. **Deterrent Mode (Single Tap)** – Loud alarm or customizable sound.  
-    2. **Pre-Arming (Long Press)** – Opens emergency classification menu (Medical, Security, etc.).  
-    3. **Precise Dispatch** – Sends GPS + emergency type to campus security.  
-    4. **Failsafe:** Auto-escalates to high-priority if no selection in 5s.  
+  - **Deterrent Mode (Single Tap)** – Loud alarm or customizable sound.  
+  - **Pre-Arming (Long Press)** – Opens emergency classification menu (Medical, Security, etc.).  
+  - **Precise Dispatch** – Sends GPS + emergency type to campus security.  
+  - **Failsafe:** Auto-escalates to high-priority if no selection in 5s.  
 
 - **Stage 2: Live Guardian Mode**  :speaker:
-    1. **One-Way Audio Stream** – Discreet live audio to campus security.  
-    2. **Real-Time Feedback** – Dims screen + displays reassuring text ("Help is on the way").  
-    3. **Ultimate Safeguard** – *Duress PIN* cancels visibly but secretly escalates alert.  
+  - **One-Way Audio Stream** – Discreet live audio to campus security.  
+  - **Real-Time Feedback** – Dims screen + displays reassuring text ("Help is on the way").  
+  - **Ultimate Safeguard** – *Duress PIN* cancels visibly but secretly escalates alert.  
 
 
 #### 3. Community Safety Ecosystem  :mailbox:
@@ -63,21 +58,16 @@ The app delivers its value through **three main features**:
 
 
 ## Technical Stack  :computer:
-- **Frontend** 
-
-  - Flutter 
-- **Backend** 
-  - C++
-  - Java
-- **Database** 
-  - MySQL
+- **Frontend:** Flutter 
+- **Backend:** C++ / Java
+- **Database:** MySQL
 - **Other Integrations:**  
-  - Google Maps API
+  - Maps API (Google Maps / OpenStreetMap)  
   - Real-time Audio Streaming  
   - Push Notifications  
 
 
-## Core Version  :fire:
+## Usage  :fire:
 1. Launch the app.  
 2. Enter the current location and destination access navigation mode.  
 3. Use *"Let's Walk!"* to walk in groups or let the app suggest safe routes.  
@@ -121,36 +111,13 @@ You can run **JustBrightForUTM** in two ways:
      flutter run --target=lib/demo.dart
      ```  
 
-## Project Structure
-```bash
-CodeNection/
-├── functions/
-│   ├── index.js
-│   ├── package.json
-│   └── package-lock.json
-├── lib/
-│   ├── features/
-│   │   ├── report/
-│   │   └── sos_alert/
-│   │       ├── guard_view/
-│   │       └── service/
-│   ├── models/
-│   ├── pages/
-│   ├── widgets/
-│   │   ├── AlertDeactivation.dart
-│   │   ├── AppDrawer.dart
-│   │   └── BlinkingIcon.dart
-│   └── main.dart
-├── assets/
-├── android/
-├── ios/
-└── pubspec.yaml
-```
-## Documentation  
-- **Demo / Walkthrough:** https://youtu.be/3rg5cUewwSQ
-- **Tech Stack:** Flutter :heavy_plus_sign: C++/Dart :heavy_plus_sign: MySQL 
 
-## Contributors  
+## 📖 Documentation  
+- **Demo / Walkthrough:** https://youtu.be/3rg5cUewwSQ
+- **Technical Stack:** Flutter + C++ + MySQL 
+
+
+## 👨‍💻 Contributors  
 - Team **JustBrightForUTM**
 
   -   Lee Mei Shuet

@@ -2,7 +2,7 @@ import 'package:audioplayers/audioplayers.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/material.dart';
-import 'package:hello_flutter/GuardianModeScreen.dart';
+import 'package:hello_flutter/features/sos_alert/user_view/GuardianModeScreen.dart';
 import '../guard_view/guard_tracking_page.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
