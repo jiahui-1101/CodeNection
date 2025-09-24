@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import '../user_view/NewsCard.dart';
-import '../user_view/NewsDetailPage.dart';
+import 'NewsCard.dart';
+import 'NewsDetailPage.dart';
 
 class NewsListPage extends StatelessWidget {
   const NewsListPage({super.key});

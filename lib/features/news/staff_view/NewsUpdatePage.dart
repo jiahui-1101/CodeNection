@@ -419,7 +419,7 @@ class _NewsUpdatePageState extends State<NewsUpdatePage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text("News Updates"),
+        title: const Text("News Updates", style: TextStyle(color: Color.fromARGB(255, 255, 255, 255))),
         backgroundColor: Colors.deepPurple,
       ),
       body: Container(
@@ -478,7 +478,7 @@ class _NewsUpdatePageState extends State<NewsUpdatePage> {
       floatingActionButton: FloatingActionButton(
         onPressed: () => _showAddNewsDialog(),
         backgroundColor: Colors.deepPurple,
-        child: const Icon(Icons.add),
+        child: const Icon(Icons.add, color: Colors.white),
       ),
     );
   }
@@ -493,7 +493,7 @@ class NewsDetailPage extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text("News Detail"),
+        title: const Text("News Detail", style: TextStyle(color: Color.fromARGB(255, 255, 254, 254))),
         backgroundColor: Colors.deepPurple,
       ),
       body: SingleChildScrollView(
