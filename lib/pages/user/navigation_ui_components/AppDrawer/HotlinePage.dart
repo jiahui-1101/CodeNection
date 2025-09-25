@@ -20,9 +20,8 @@ class HotlinePage extends StatelessWidget {
       appBar: AppBar(
         title: const Text(
           "Hotline",
-          style: TextStyle(fontWeight: FontWeight.bold),
         ),
-        backgroundColor: const Color(0xFF8EB9D4),
+        backgroundColor: const Color.fromARGB(255, 168, 222, 255),
       ),
       body: ListView(
         padding: const EdgeInsets.all(16),

@@ -10,8 +10,8 @@ class NewsDetailPage extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text("News Detail"),
-        backgroundColor: Colors.blue[700],
+        title: const Text("News Detail", style: TextStyle(color: Color.fromARGB(255, 5, 5, 5))),
+        backgroundColor: const Color.fromARGB(255, 129, 189, 249),
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16.0),
