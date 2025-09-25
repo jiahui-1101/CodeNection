@@ -12,7 +12,7 @@ void showSafetyManualDialog(BuildContext context, String initialMessage) {
     title = "Medical Emergency Guide";
     content = SafetyManualContent.medicalEmergency; 
   } else {
-    title = "General Safety Tips useless brooooo";
+    title = "General Safety Tips";
     content = SafetyManualContent.generalSafety; 
   }
 
