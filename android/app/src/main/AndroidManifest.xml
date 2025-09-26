@@ -13,7 +13,7 @@
     <uses-permission android:name="android.permission.RECORD_AUDIO"/>
     
     <application
-        android:label="hello_flutter"
+        android:label="UTMBright"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher">
         <meta-data
