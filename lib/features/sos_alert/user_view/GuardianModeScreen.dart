@@ -12,6 +12,7 @@ import 'BlinkingIcon.dart';
 import 'GuardianModeSafetyManual.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:hello_flutter/features/sos_alert/guard_view/RouteTracker.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 class GuardianModeScreen extends StatefulWidget {
   final String initialMessage;
@@ -55,12 +56,12 @@ class _GuardianModeScreenState extends State<GuardianModeScreen> {
   double _trackedDistance = 0;
   final int _trackedPoints = 0;
   bool _isRouteTrackerInitialized = false;
-  final String _apiKey = "AIzaSyALfVigfIlFFmcVIEy-5OGos42GViiQe-M";
+  late String _apiKey;
 
   @override
   void initState() {
     super.initState();
-
+    _apiKey = dotenv.get('GOOGLE_NAVIGATION_API_KEY');
     final currentUser = FirebaseAuth.instance.currentUser;
     if (currentUser == null) return;
 

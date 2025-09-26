@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 class LocationSelectionPage extends StatefulWidget {
   final String? initialCurrentLocation;
@@ -16,7 +17,7 @@ class LocationSelectionPage extends StatefulWidget {
 class _LocationSelectionPageState extends State<LocationSelectionPage> {
   final TextEditingController _currentLocationController = TextEditingController();
   final TextEditingController _destinationController = TextEditingController();
-  final String googleApiKey = "AIzaSyALfVigfIlFFmcVIEy-5OGos42GViiQe-M";
+  late String googleApiKey;
   
   List<dynamic> _currentLocationSuggestions = [];
   List<dynamic> _destinationSuggestions = [];
@@ -27,6 +28,7 @@ class _LocationSelectionPageState extends State<LocationSelectionPage> {
   @override
   void initState() { 
     super.initState();
+    googleApiKey = dotenv.get('GOOGLE_NAVIGATION_API_KEY');
     _currentLocationController.text = widget.initialCurrentLocation ?? '';
   }
 

@@ -51,3 +51,19 @@ prompt.txt
 safety_app.dart
 utmbright.dart
 
+# Environment variables
+.env
+.env.*
+
+# API keys and secrets
+keys.json
+config/keys.dart
+secrets/
+
+# Other sensitive files
+*.keystore
+*.jks
+*.p12
+*.key
+*.cert
+

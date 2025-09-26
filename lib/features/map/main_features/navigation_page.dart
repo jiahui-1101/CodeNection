@@ -10,6 +10,7 @@ import 'package:hello_flutter/features/sos_alert/user_view/SmartSosButton.dart';
 import 'package:hello_flutter/features/map/individual/SafetyCompanionBottomSheet.dart';
 import 'package:flutter_compass/flutter_compass.dart';
 import 'dart:math' as math;
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 class NavigationPage extends StatefulWidget {
   final String currentLocation;
@@ -37,7 +38,7 @@ class NavigationPage extends StatefulWidget {
 
 class _NavigationPageState extends State<NavigationPage> {
   final Completer<GoogleMapController> _controller = Completer();
-  final String serverApiKey = "AIzaSyD8v9hGJLHwma7zYUFhpW4WVbNlehYhpGk";
+  late String serverApiKey;
   double _currentHeading = 0.0;
   StreamSubscription<CompassEvent>? _compassSubscription;
   bool _isUpdatingCamera = false;
@@ -76,6 +77,7 @@ class _NavigationPageState extends State<NavigationPage> {
   @override
   void initState() {
     super.initState();
+    serverApiKey = dotenv.get('GOOGLE_MAPS_API_KEY');
     _initializeNavigation(); // 初始化导航逻辑
     _startCompassUpdates(); // 开始指南针监听
     _initializeTts(); // 初始化语音
