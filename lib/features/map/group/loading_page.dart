@@ -117,7 +117,7 @@ class _LoadingPageState extends State<LoadingPage>
     _progressTimer = Timer.periodic(duration, (timer) {
       if (_isMatching && _startTime != null) {
         final elapsed = DateTime.now().difference(_startTime!).inMilliseconds;
-        final progressPercent = (elapsed / 5000 * 100).clamp(0, 100).toDouble();
+        final progressPercent = (elapsed / 45000 * 100).clamp(0, 100).toDouble();
 
         setState(() {
           _progress = progressPercent;
@@ -157,7 +157,7 @@ class _LoadingPageState extends State<LoadingPage>
 
   // 在 _startMatching 方法中修改时间窗口和匹配逻辑
   Future<void> _startMatching() async {
-    _matchingTimer = Timer(const Duration(seconds: 5), () async {
+    _matchingTimer = Timer(const Duration(seconds: 45), () async {
       if (!mounted) return;
 
       bool isMatched = false;
