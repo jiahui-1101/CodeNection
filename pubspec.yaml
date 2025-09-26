@@ -78,6 +78,7 @@ flutter:
     - assets/music/alarm.mp3
     - assets/audio/
     - assets/images/profile_placeholder.png
+    - .env
 
   fonts:
     - family: Grillin
