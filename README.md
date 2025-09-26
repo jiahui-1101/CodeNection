@@ -136,7 +136,7 @@ You can run **JustBrightForUTM** in two ways:
 #### 1. Run on a Physical Device  
 - **Android**  
   1. Download APK file.
-[![Download APK](https://img.shields.io/badge/Download-APK-brightgreen)](https://github.com/YourUserName/YourRepoName/releases/latest/download/app-release.apk)
+[![Download APK](https://img.shields.io/badge/Download-APK-brightgreen)](https://github.com/jiahui-1101/CodeNection/releases/tag/CampusSafetyManagement)
 
 
   3. Tap the app icon to launch the app on your phone.
