@@ -7,6 +7,7 @@ import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'package:geolocator/geolocator.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 class MapPage extends StatefulWidget {
   const MapPage({super.key});
@@ -26,13 +27,14 @@ class _MapPageState extends State<MapPage> {
   LatLng? destinationLatLng;
   Set<Marker> markers = {};
   Set<Polyline> polylines = {};
+  late String serverApiKey;
 
-  // ✅ Use same key as NavigationPage
-  final String serverApiKey = "AIzaSyD8v9hGJLHwma7zYUFhpW4WVbNlehYhpGk";
   @override
   void initState() {
     super.initState();
+    serverApiKey = dotenv.get('GOOGLE_MAPS_API_KEY');
     _getCurrentLocation(); // Add this line
+
   }
 
   // Add this method to get current location

@@ -5,11 +5,13 @@ import 'features/register/LoginPage.dart';
 import 'package:hello_flutter/pages/user/navigation_ui_components/MainScreen.dart';
 import 'pages/staff/CallManagementPage.dart';
 import 'features/sos_alert/service/firebase_api.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 Future<void> main() async {   
   WidgetsFlutterBinding.ensureInitialized();
   await Firebase.initializeApp();   
-   await FirebaseApi().initNotifications(); 
+  await FirebaseApi().initNotifications();
+  await dotenv.load(fileName: ".env");
   runApp(const MyApp());
 }
 class MyApp extends StatelessWidget {

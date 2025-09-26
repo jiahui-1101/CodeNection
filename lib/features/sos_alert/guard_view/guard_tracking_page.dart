@@ -9,6 +9,7 @@ import 'package:http/http.dart' as http;
 import 'package:audio_session/audio_session.dart';
 import 'RouteTracker.dart';
 import 'package:geolocator/geolocator.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 class TrackingPage extends StatefulWidget {
   final String alertId;
@@ -32,7 +33,7 @@ class _TrackingPageState extends State<TrackingPage> {
   String _distanceRemaining = "...";
   String _durationRemaining = "...";
   Timer? _routeRecalculationTimer;
-  final String _apiKey = "AIzaSyALfVigfIlFFmcVIEy-5OGos42GViiQe-M";
+  late String _apiKey;
 
   final AudioPlayer _audioPlayer = AudioPlayer();
   late LocationService _guardLocationService;
@@ -57,7 +58,7 @@ class _TrackingPageState extends State<TrackingPage> {
   @override
   void initState() {
     super.initState();
-
+    _apiKey = dotenv.get('GOOGLE_NAVIGATION_API_KEY');
 
     _guardLocationService = LocationService(widget.guardId, isAlert: false);
     _guardLocationService.startSharingLocation();
