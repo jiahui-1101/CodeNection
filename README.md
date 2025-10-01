@@ -131,9 +131,8 @@ The app delivers its value through **three main pillars**:
 ---
 
 ## Setup Guide :memo:
-You can run **JustBrightForUTM** in two ways:  
+You can run **JustBrightForUTM** in by:  
 
-#### 1. Run on a Physical Device  
 - **Android**  
   1. Download APK file.
 [![Download APK](https://img.shields.io/badge/Download-APK-brightgreen)](https://github.com/jiahui-1101/CodeNection/releases/tag/UTMBright)
@@ -141,15 +140,6 @@ You can run **JustBrightForUTM** in two ways:
 
   3. Tap the app icon to launch the app on your phone.
 
-#### 2. Run on an Emulator / Simulator  
-- **Android Emulator**  
-  1. Open Android Studio → *Device Manager*.  
-  2. Create and launch an emulator (Pixel recommended).  
-  3. Run:  
-     ```bash
-     flutter run --release
-     ```  
----
 
 ## Project Structure ⛓
 ```bash
