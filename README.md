@@ -8,7 +8,7 @@
 - [Introduction](#introduction-mega)  
 - [Core Features](#core-features-star2)  
 - [Technical Stack](#technical-stack-computer)  
-- [Setup Guide](#setup-guide-memo)  
+- [Installation](#installation-)  
 - [Project Structure](#project-structure-)
 - [System Architecture](#system-architecture-)  
 - [Documentation](#documentation-)  
@@ -129,17 +129,67 @@ The app delivers its value through **three main pillars**:
   - Gemini Developer Key (AI assistance)  
 
 ---
+## Installation 🔗
+This project supports two ways to experience the app:
 
-## Setup Guide :memo:
-You can run **JustBrightForUTM** in by:  
+- 🧑‍💻 For Developers — set up the project locally and use your own API keys to customize or extend the app.
 
-- **Android**  
+- 📱 For Users — simply download the APK and run the fully functional app directly (no setup needed).
+
+### 🔷🧑‍💻 For Developers: Setup Guide
+### 🔸Prerequisites
+- Flutter
+- Firebase CLI
+- Android Emulator
+
+### 🔸Project Setup
+1. Clone the repository
+```bash
+git clone https://github.com/jiahui-1101/CodeNection.git
+cd yourprojectname
+```
+
+2. Environment Variables
+- To enable the “Out-of-the-box” (OOTB) integrations, you need to configure your environment files for Google Maps and Firebase.
+  1. Create two files in your project root:
+       ```bash
+       .env
+       .env.development
+  2. .env (Google API Keys)
+     - Add your Google Maps and Navigation API keys like this:
+      ```bash
+      GOOGLE_MAPS_API_KEY="YOUR_MAP_API_KEY_HERE"
+      GOOGLE_NAVIGATION_API_KEY="YOUR_API_NAVIGATION_KEY_HERE"
+
+  3. .env.development (Firebase Configuration)
+     - Add your Firebase and Android config:
+      ```bash
+      # Firebase Config
+      FIREBASE_API_KEY_WEB=your_web_api_key_here
+      FIREBASE_APP_ID_WEB=your_web_app_id_here
+      FIREBASE_MESSAGING_SENDER_ID=your_sender_id_here
+      FIREBASE_PROJECT_ID=your_project_id_here
+      FIREBASE_AUTH_DOMAIN=your_auth_domain_here
+      FIREBASE_STORAGE_BUCKET=your_storage_bucket_here
+    
+      # Firebase Android Config
+      FIREBASE_API_KEY_ANDROID=your_android_api_key_here
+      FIREBASE_APP_ID_ANDROID=your_android_app_id_here
+      
+### 🔸 Install Dependencies
+   ```bash
+   flutter pub get
+   ```
+### 🔸 Run the App
+   ```bash
+   flutter run -d emulator-your-device
+   ```
+
+### 🔷📱For Users: Quick Access APK
   1. Download APK file.
 [![Download APK](https://img.shields.io/badge/Download-APK-brightgreen)](https://github.com/jiahui-1101/CodeNection/releases/tag/UTMBright)
 
-
-  3. Tap the app icon to launch the app on your phone.
-
+  2. Tap the app icon to launch the app on your phone.
 
 ## Project Structure ⛓
 ```bash
