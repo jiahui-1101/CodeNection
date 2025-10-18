@@ -250,7 +250,8 @@ CodeNection/
 ---
 
 ## Documentation 📃
-- **User Guide:** https://forms.gle/ZK2iXbxEqRqoE2iJ6
+- **User Guide:** User Manual UTM Bright.pdf
+- **User Feedback:**https://forms.gle/ZK2iXbxEqRqoE2iJ6
 - **Demo / Walkthrough:** https://youtu.be/3rg5cUewwSQ
 - **Tech Stack:** Flutter :heavy_plus_sign: Firebase
 
