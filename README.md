@@ -250,8 +250,8 @@ CodeNection/
 ---
 
 ## Documentation 📃
-- **User Guide:** https://github.com/jiahui-1101/CodeNection/tree/main
-- User Feedback:https://forms.gle/ZK2iXbxEqRqoE2iJ6
+- **User Guide:** https://github.com/jiahui-1101/CodeNection/blob/main/User%20Manual%20UTM%20Bright%20(1).pdf
+- **User Feedback:** https://forms.gle/ZK2iXbxEqRqoE2iJ6
 - **Demo / Walkthrough:** https://youtu.be/3rg5cUewwSQ
 - **Tech Stack:** Flutter :heavy_plus_sign: Firebase
 
