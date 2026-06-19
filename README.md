@@ -257,13 +257,18 @@ CodeNection/
 
 ---
 
-## Contributors 👩🏼‍💻
-- Team **JustBrightForUTM**
+## Team Contributions 👩🏼‍💻
 
-      🙋🏻‍♀️Lee Mei Shuet
-      🙆🏻‍♀️Loh Su Ting
-      🧏🏻‍♀️Wong Jia Hui
-      💁🏻‍♀️Wong Zi Qi
+Team **JustBrightForUTM**
+
+| Team member | Role | Contributions evidenced in the repository | Visible non-merge commits* |
+|---|---|---|---:|
+| **Wong Jia Hui** | **Team Leader · Lead Flutter/Firebase Developer** | Led application integration and contributed navigation, authentication, SOS/guardian workflows, emergency contacts, community live feed, AI chat, settings, report management, security configuration and release fixes. | **58 / 121** |
+| **Lee Mei Shuet** | **Safety & Reporting Developer** | Implemented Guardian/Duress workflow behaviour, location recording, SMS/FCM notifications, AuthWrapper logic, Firestore report storage, urgency/search features and staff report views. | **28 / 121** |
+| **Loh Su Ting** | **Emergency Resources Developer** | Contributed emergency-contact and tap-to-call flows, hotline/navigation elements, report-page fixes, terms content and user-manual updates. | **12 / 121** |
+| **Wong Zi Qi** | **Documentation & Release Coordinator** | Maintained the README, installation and release instructions, project structure, system architecture, demo links, feedback form, APK guidance and user manual. | **23 / 121** |
+
+<sub>*Counts are non-merge commits visible in the public Git history. They describe repository activity, not code ownership; pair work and offline work may not appear proportionally.</sub>
 
 
 
